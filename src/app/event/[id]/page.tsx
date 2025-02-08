@@ -7,6 +7,7 @@ import CopyInviteButton from "~/components/events/CopyInviteButton";
 import RankedRestaurants from "~/components/rankings/RankedRestaurants";
 import { getRankingsForEvent } from "~/lib/ranking";
 import { auth } from "~/server/auth";
+import { QRCode } from 'qrcode.react';
 import { INVERSE_CUISINE_MAPPINGS } from "~/constants/cuisines";
 
 export default async function EventPage({
@@ -118,6 +119,9 @@ export default async function EventPage({
 
             <div className="mt-6 flex justify-center">
               <CopyInviteButton eventId={event.id} />
+              <div className="mt-4">
+                <QRCode value={`${window.location.origin}/event/${id}/invite`} size={100} />
+              </div>
             </div>
             {/* Metadata Card */}{
               isHost && rankings && rankings.length > 0 && (
