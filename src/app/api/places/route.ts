@@ -38,7 +38,7 @@ interface PlaceDetails {
   }
   rating: number
   total_ratings: number
-  price_level: number
+  price_level: string
   phone_number: string
   website: string
   opening_hours: string[]
@@ -74,8 +74,8 @@ async function searchPlaces(
       }
     },
     includedTypes: placeTypes,
-    maxResultCount: 30,
-    rankPreference: "POPULARITY",
+    maxResultCount: 20,
+    rankPreference: "DISTANCE",
     pageToken: pageToken
   }
 
