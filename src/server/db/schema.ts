@@ -133,6 +133,8 @@ export const events = createTable("event", {
     .references(() => users.id),
 });
 
+export type HostEvent = typeof events.$inferSelect;
+
 export const eventResponses = createTable("event_response", {
   id: varchar("id", { length: 255 })
     .notNull()
@@ -290,6 +292,14 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   places: many(places),
   apiLogs: many(apiLogs),
   rankedPlaces: many(rankedPlaces),
+  responses: many(eventResponses),
+}));
+
+export const eventResponsesRelations = relations(eventResponses, ({ one }) => ({
+  event: one(events, {
+    fields: [eventResponses.eventId],
+    references: [events.id],
+  }),
 }));
 
 export const apiLogsRelations = relations(apiLogs, ({ one }) => ({
