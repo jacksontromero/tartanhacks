@@ -1,5 +1,5 @@
 import Link from "next/link";
-import SignOutButton from "~/components/auth/SignOutButton";
+import AuthButton from "~/components/auth/AuthButton";
 import { auth } from "~/server/auth";
 
 export default async function Navbar() {
@@ -15,14 +15,14 @@ export default async function Navbar() {
           HostTable
         </Link>
 
-        {session?.user && (
-          <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-4 ml-auto">
+          {session?.user && (
             <span className="text-sm text-secondary-foreground">
               {session.user.name}
             </span>
-            <SignOutButton />
-          </div>
-        )}
+          )}
+          <AuthButton />
+        </div>
       </div>
     </nav>
   );

@@ -59,7 +59,9 @@ export default async function EventPage({
             <div className="mt-6 space-y-4">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <CalendarDays className="h-5 w-5" />
-                <span>{new Date(event.date).toLocaleDateString()}</span>
+                <span>{new Date(event.date).toLocaleDateString(undefined, {
+                  timeZone: 'UTC'
+                })}</span>
               </div>
 
               <div className="flex items-center gap-2 text-muted-foreground">

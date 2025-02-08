@@ -31,14 +31,14 @@ export default async function HomePage() {
     <main className="flex-1 flex flex-col bg-background overflow-y-auto">
       <div className="container mx-auto flex flex-col items-center gap-12 px-4 py-16">
         <h1 className="text-5xl font-extrabold tracking-tight text-secondary-foreground">
-          Where2Eat
+          HostTable
         </h1>
         <div className="flex flex-col items-center gap-4">
           <SignInButton />
           {session && <HostEventButton />}
         </div>
         {session && <YourEvents events={events} />}
-        <TestInput />
+        {/* <TestInput /> */}
       </div>
     </main>
   );

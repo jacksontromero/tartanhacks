@@ -62,7 +62,7 @@ export default function CreateEventPage() {
     defaultValues: {
       title: "",
       description: "",
-      date: new Date().toISOString().split("T")[0],
+      date: new Date().toLocaleDateString('en-CA'),
       startTime: "19:00",
       endTime: "21:00",
       location: "",
