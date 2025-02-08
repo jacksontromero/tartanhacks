@@ -16,6 +16,19 @@ interface PlaceFeatures {
   takeout: boolean
 }
 
+interface PlaceReview {
+  name: string
+  text: string
+  rating: number
+  relativePublishTimeDescription: string
+  publishTime: string
+  authorAttribution?: {
+    displayName: string
+    photoUri?: string
+    uri?: string
+  }
+}
+
 interface PlaceDetails {
   name: string
   address: string
@@ -31,7 +44,8 @@ interface PlaceDetails {
   opening_hours: string[]
   place_id: string
   types: string[]
-  features: PlaceFeatures
+  features: PlaceFeatures,
+  reviews: PlaceReview[],
 }
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
@@ -40,7 +54,7 @@ async function searchPlaces(
   latitude: number,
   longitude: number,
   radius: number,
-  placeType: string,
+  placeTypes: string[],
   pageToken?: string
 ): Promise<{ places: PlaceDetails[], nextPageToken?: string }> {
   const url = 'https://places.googleapis.com/v1/places:searchNearby'
@@ -55,8 +69,8 @@ async function searchPlaces(
         radius: radius
       }
     },
-    includedTypes: [placeType],
-    maxResultCount: 20,
+    includedTypes: placeTypes,
+    maxResultCount: 30,
     rankPreference: "RATING",
     pageToken: pageToken
   }
@@ -85,7 +99,8 @@ async function searchPlaces(
           'places.takeout',
           'places.wheelchairAccessibleEntrance',
           'places.servesVegetarianFood',
-          'nextPageToken'
+          'places.reviews',
+          'nextPageToken',
         ].join(',')
       },
       body: JSON.stringify(body)
