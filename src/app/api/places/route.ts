@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { db } from "~/server/db"
 import { apiLogs as apiRequestLogs } from '~/server/db/schema'
+import { classifyCuisine } from "~/lib/ai"
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
 const YELP_API_KEY = process.env.YELP_API_KEY
@@ -168,36 +169,20 @@ export async function POST(request: Request) {
     // Convert map to array
     const places = Array.from(allPlaces.values())
     
-    // Get cuisine classifications for each place
-    const cuisinePromises = places.map(async (place) => {
+    // Get cuisine classifications using helper directly
+    const placesWithCuisines = await Promise.all(places.map(async (place) => {
       try {
-        const response = await fetch('/api/ai/cuisine', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: place.displayName?.text,
-            types: place.types,
-            yelpCategories: place.yelp?.categories?.map(cat => cat.title) || []
-          })
-        });
-
-        if (response.ok) {
-          const { cuisines } = await response.json();
-          return {
-            ...place,
-            cuisines
-          };
-        }
-        return place;
+        const restaurantInfo = `Name: ${place.displayName?.text}, Types: ${place.types?.join(", ")}, Yelp Categories: ${place.yelp?.categories?.map(cat => cat.title).join(", ")}`;
+        const cuisines = await classifyCuisine(restaurantInfo);
+        return {
+          ...place,
+          cuisines
+        };
       } catch (error) {
         console.error(`Failed to get cuisines for ${place.displayName?.text}:`, error);
         return place;
       }
-    });
-
-    const placesWithCuisines = await Promise.all(cuisinePromises);
+    }));
     
     // Log final results to database
     await db.insert(apiRequestLogs).values({
