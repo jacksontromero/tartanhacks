@@ -1,5 +1,6 @@
 import SignInButton from "~/components/auth/SignInButton";
 import HostEventButton from "~/components/events/HostEventButton";
+import PlacesFinder from "~/components/places/placeAPItest";
 import { auth } from "~/server/auth";
 
 export default async function HomePage() {
@@ -14,6 +15,7 @@ export default async function HomePage() {
         </h1>
         <div className="flex flex-col items-center gap-4">
           <SignInButton />
+          <PlacesFinder />
           {session && <HostEventButton />}
         </div>
       </div>
