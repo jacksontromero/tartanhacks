@@ -36,12 +36,6 @@ export async function getRankingsForEvent(event_id: string) {
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
     // Try to get cuisines if they're missing
     let cuisines = restaurant.cuisines || [];
-    if (cuisines.length === 0) {
-      const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${restaurant.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ")}, Address: ${restaurant.formattedAddress}, Price Level: ${restaurant.priceLevel}, Rating: ${restaurant.rating}, Total Reviews: ${restaurant.userRatingCount}, Features: ${JSON.stringify(restaurant.features)}, Reviews: ${restaurant.reviews?.slice(0,3).map((r: {text: string}) => r.text.text).join(" | ") || ""}, Yelp Reviews: ${restaurant.yelp?.reviews?.[0]?.text || ""}`;
-      cuisines = await classifyCuisine(restaurantInfo);
-      console.log(restaurantInfo);
-      console.log(cuisines);
-    }
 
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,

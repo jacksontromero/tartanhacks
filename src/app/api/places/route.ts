@@ -201,19 +201,29 @@ export async function POST(request: Request) {
 
     // Convert map to array
     const places = Array.from(allPlaces.values())
-    
+
     // Get cuisine classifications using helper directly
-    const placesWithCuisines = await Promise.all(places.map(async (place) => {
+    const placesWithCuisines = await Promise.all(places.map(async (restaurant) => {
       try {
-        const restaurantInfo = `Name: ${place.displayName?.text}, Types: ${place.types?.join(", ")}, Yelp Categories: ${place.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ")}, Address: ${place.formattedAddress}, Price Level: ${place.priceLevel}, Rating: ${place.rating}, Total Reviews: ${place.userRatingCount}, Features: ${JSON.stringify(place.features)}, Reviews: ${place.reviews?.slice(0,3).map(r => r.text).join(" | ") || ""}, Yelp Reviews: ${place.yelp?.reviews?.slice(0,3).map((r: {text: string}) => r.text).join(" | ") || ""}`;
-        const cuisines = await classifyCuisine(restaurantInfo);
+        const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${restaurant.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ")}, Address: ${restaurant.formattedAddress}, Price Level: ${restaurant.priceLevel}, Rating: ${restaurant.rating}, Total Reviews: ${restaurant.userRatingCount}, Features: ${JSON.stringify(restaurant.features)}, Reviews: ${restaurant.reviews?.slice(0,3).map((r: {text: string}) => r.text.text).join(" | ") || ""}, Yelp Reviews: ${restaurant.yelp?.reviews?.[0]?.text || ""}`;
+        
+        let cuisines = [];
+        let attempts = 0;
+        while (cuisines.length === 0 && attempts < 3) {
+          cuisines = await classifyCuisine(restaurantInfo);
+          attempts++;
+          if (cuisines.length === 0 && attempts < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
+          }
+        }
+
         return {
-          ...place,
-          cuisines: [...cuisines, ...place.types]
+          ...restaurant,
+          cuisines: [...cuisines, ...restaurant.types]
         };
       } catch (error) {
-        console.error(`Failed to get cuisines for ${place.displayName?.text}:`, error);
-        return place;
+        console.error(`Failed to get cuisines for ${restaurant.displayName?.text}:`, error);
+        return restaurant;
       }
     }));
     
