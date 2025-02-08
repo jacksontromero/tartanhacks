@@ -146,7 +146,7 @@ export default async function EventPage({
                         <div className="flex flex-wrap gap-2">
                           {data.overallPreferences.antiPreferred_cuisines.map(cuisine => (
                             <span key={cuisine} className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full">
-                              {cuisine}
+                              {INVERSE_CUISINE_MAPPINGS[cuisine]}
                             </span>
                           ))}
                         </div>
