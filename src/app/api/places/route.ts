@@ -205,7 +205,7 @@ export async function POST(request: Request) {
     // Get cuisine classifications using helper directly
     const placesWithCuisines = await Promise.all(places.map(async (place) => {
       try {
-        const restaurantInfo = `Name: ${place.displayName?.text}, Types: ${place.types?.join(", ")}, Yelp Categories: ${place.yelp?.categories?.map(cat => cat.title).join(", ")}`;
+        const restaurantInfo = `Name: ${place.displayName?.text}, Types: ${place.types?.join(", ")}, Yelp Categories: ${place.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ")}, Address: ${place.formattedAddress}, Price Level: ${place.priceLevel}, Rating: ${place.rating}, Total Reviews: ${place.userRatingCount}, Features: ${JSON.stringify(place.features)}, Reviews: ${place.reviews?.slice(0,3).map(r => r.text).join(" | ") || ""}, Yelp Reviews: ${place.yelp?.reviews?.slice(0,3).map((r: {text: string}) => r.text).join(" | ") || ""}`;
         const cuisines = await classifyCuisine(restaurantInfo);
         return {
           ...place,

@@ -3,7 +3,6 @@ import { PlaceDetails, PriceLevel } from "~/constants/types";
 import { db } from "~/server/db";
 import { eq, desc } from "drizzle-orm";
 import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
-import { classifyCuisine } from "~/lib/ai";
 
 export async function getRankingsForEvent(event_id: string) {
   // Get event responses
@@ -34,12 +33,6 @@ export async function getRankingsForEvent(event_id: string) {
   
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
-    const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
-    
-    // Get AI-classified cuisines
-    const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${yelpCuisines.join(", ")}`;
-    const aiCuisines = await classifyCuisine(restaurantInfo);
-    
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
       address: restaurant.formattedAddress,
@@ -60,7 +53,7 @@ export async function getRankingsForEvent(event_id: string) {
       opening_hours: [],
       place_id: restaurant.id,
       types: restaurant.types || [],
-      cuisines: [...aiCuisines, ...yelpCuisines],
+      cuisines: restaurant.cuisines || [],
       features: restaurant.features || {},
       reviews: [],
       main_image_url: restaurant.main_image_url || null,
