@@ -157,6 +157,8 @@ export const eventResponses = createTable("event_response", {
   }).default(sql`CURRENT_TIMESTAMP`),
 });
 
+export type EventResponse = typeof eventResponses.$inferSelect;
+
 export const places = createTable("place", {
   id: varchar("id", { length: 255 })
     .notNull()

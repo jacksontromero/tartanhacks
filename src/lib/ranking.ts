@@ -2,12 +2,12 @@ import { CUISINE_MAPPINGS, PRICE_MAPPINGS } from "~/constants/cuisines";
 import { PlaceDetails, PriceLevel } from "~/constants/types";
 import { db } from "~/server/db";
 import { eq, desc } from "drizzle-orm";
-import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
+import { eventResponses, apiLogs, rankedPlaces, EventResponse } from "~/server/db/schema";
 import { classifyCuisine } from "~/lib/ai";
 
 export async function getRankingsForEvent(event_id: string) {
   // Get event responses
-  const responses = await db.query.eventResponses.findMany({
+  const responses: EventResponse[] = await db.query.eventResponses.findMany({
     where: eq(eventResponses.eventId, event_id),
   });
 
@@ -31,7 +31,7 @@ export async function getRankingsForEvent(event_id: string) {
 
   // Aggregate preferences
   const preferences = aggregatePreferences(responses);
-  
+
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
     // Try to get cuisines if they're missing
@@ -62,9 +62,9 @@ export async function getRankingsForEvent(event_id: string) {
       reviews: [],
       main_image_url: restaurant.main_image_url || null,
     };
-    
+
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
-    
+
     return {
       restaraunt: restaurantWithCuisines,
       score,
@@ -94,7 +94,7 @@ export async function getRankingsForEvent(event_id: string) {
     success: true,
     event_id,
     preferences: {
-      preferred_cuisines: Object.keys(preferences.preferredCuisines),
+      preferred_cuisines: Object.keys(preferences.cuisineScores),
       antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
     },
     rankings: sortedRankings,
@@ -104,7 +104,7 @@ export async function getRankingsForEvent(event_id: string) {
       ranked_restaurants: sortedRankings.length
     }
   };
-} 
+}
 
 function calculateAggregateRating(
   googleRating?: number,
@@ -124,64 +124,79 @@ function calculateAggregateRating(
 }
 
 interface AggregatedPreferences {
-  preferredCuisines: Record<string, number>;
+  cuisineScores: Record<string, number>;
   antiPreferredCuisines: Record<string, number>;
   dietaryRestrictions: Set<string>;
-  acceptablePriceRanges: Set<PriceLevel>;
-  rankedCuisines: string[];
+  maxEffectivePrice: number;
 }
 
-export function aggregatePreferences(eventResponses: any[]): AggregatedPreferences {
+export function aggregatePreferences(eventResponses: EventResponse[]): AggregatedPreferences {
   const preferences: AggregatedPreferences = {
-    preferredCuisines: {},
+    cuisineScores: {},
     antiPreferredCuisines: {},
     dietaryRestrictions: new Set(),
-    acceptablePriceRanges: new Set(),
-    rankedCuisines: [],
+    maxEffectivePrice: Infinity, // Initialize with a high value
   };
 
-  const cuisineRankingScores: Record<string, number[]> = {};
+  // We'll store each user's maximum acceptable price level here.
+  const userMaxPrices: number[] = [];
+
   eventResponses.forEach(response => {
-    const preferredCuisines = JSON.parse(response.preferredCuisines);
     const antiPreferredCuisines = JSON.parse(response.antiPreferredCuisines);
     const dietaryRestrictions = JSON.parse(response.dietaryRestrictions);
     const acceptablePriceRanges = JSON.parse(response.acceptablePriceRanges);
     const rankedCuisines = JSON.parse(response.rankedCuisines);
 
-    preferredCuisines.forEach((cuisine: string) => {
-      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
-      preferences.preferredCuisines[cuisineMap] = (preferences.preferredCuisines[cuisineMap] || 0) + 1;
-    });
-
+    // Accumulate anti-preferred cuisines exactly as before
     antiPreferredCuisines.forEach((cuisine: string) => {
-      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
-      preferences.antiPreferredCuisines[cuisineMap] = (preferences.antiPreferredCuisines[cuisineMap] || 0) + 1;
+      const mappedCuisine = CUISINE_MAPPINGS[cuisine] || "";
+      preferences.antiPreferredCuisines[mappedCuisine] =
+        (preferences.antiPreferredCuisines[mappedCuisine] || 0) + 1;
     });
 
     dietaryRestrictions.forEach((restriction: string) => {
       preferences.dietaryRestrictions.add(restriction);
     });
 
-    acceptablePriceRanges.forEach((price: string) => {
-      let priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
-      preferences.acceptablePriceRanges.add(priceMap);
-    });
+    // Compute this user's maximum acceptable price:
+    const mappedPrices = acceptablePriceRanges.map(
+      (price: string) => PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED
+    );
+    const userMaxPrice = Math.max(...mappedPrices);
+    userMaxPrices.push(userMaxPrice);
 
-    rankedCuisines.forEach((cuisine: string, index: number) => {
-      if (!cuisineRankingScores[cuisine]) {
-        cuisineRankingScores[cuisine] = [];
+    // Use a unified cuisine ranking: allocate exactly 5 points per response
+    if (rankedCuisines && rankedCuisines.length > 0) {
+      if (rankedCuisines.length === 1) {
+        const cuisine = rankedCuisines[0];
+        const mappedCuisine = CUISINE_MAPPINGS[cuisine] || "";
+        preferences.cuisineScores[mappedCuisine] =
+          (preferences.cuisineScores[mappedCuisine] || 0) + 5;
+      } else {
+        // For multiple cuisines:
+        // - Give the top ranked cuisine 3 points.
+        // - Divide the remaining 2 points equally among the rest.
+        const firstCuisine = rankedCuisines[0];
+        const mappedFirst = CUISINE_MAPPINGS[firstCuisine] || "";
+        preferences.cuisineScores[mappedFirst] =
+          (preferences.cuisineScores[mappedFirst] || 0) + 3;
+
+        const remainingPoints = 2;
+        const remainingCount = rankedCuisines.length - 1;
+        const pointsEach = remainingPoints / remainingCount;
+
+        for (let i = 1; i < rankedCuisines.length; i++) {
+          const cuisine = rankedCuisines[i];
+          const mappedCuisine = CUISINE_MAPPINGS[cuisine] || "";
+          preferences.cuisineScores[mappedCuisine] =
+            (preferences.cuisineScores[mappedCuisine] || 0) + pointsEach;
+        }
       }
-      cuisineRankingScores[cuisine].push(index);
-    });
+    }
   });
 
-  preferences.rankedCuisines = Object.entries(cuisineRankingScores)
-    .map(([cuisine, rankings]) => ({
-      cuisine,
-      avgRank: rankings.reduce((sum, rank) => sum + rank, 0) / rankings.length
-    }))
-    .sort((a, b) => a.avgRank - b.avgRank)
-    .map(entry => entry.cuisine);
+  // The overall strict budget threshold is the smallest max acceptable price among users.
+  preferences.maxEffectivePrice = Math.min(...userMaxPrices);
 
   return preferences;
 }
@@ -189,52 +204,48 @@ export function aggregatePreferences(eventResponses: any[]): AggregatedPreferenc
 export function scoreRestaurant(restaurant: PlaceDetails, preferences: AggregatedPreferences): number {
   let score = 0;
 
-  // Ensure restaurant has required properties
   if (!restaurant) return 0;
 
-  // Handle cuisines/types (weight: moderate)
+  // Use the cuisineScores map to boost score based on user rankings.
   const cuisines = restaurant.cuisines || restaurant.types || [];
   cuisines.forEach(cuisine => {
-    if (preferences.preferredCuisines[cuisine]) {
-      score += preferences.preferredCuisines[cuisine] * 5;
+    const mappedCuisine = CUISINE_MAPPINGS[cuisine] || "";
+
+    // Deduct points for cuisines that are disliked.
+    if (preferences.antiPreferredCuisines[mappedCuisine]) {
+      score -= preferences.antiPreferredCuisines[mappedCuisine] * 10;
     }
-    if (preferences.antiPreferredCuisines[cuisine]) {
-      score -= preferences.antiPreferredCuisines[cuisine] * 10;
-    }
-    const rankIndex = preferences.rankedCuisines.indexOf(cuisine);
-    if (rankIndex !== -1) {
-      score += (preferences.rankedCuisines.length - rankIndex) * 3;
+    // Add points based on the cumulative preferred score.
+    if (preferences.cuisineScores[mappedCuisine]) {
+      score += preferences.cuisineScores[mappedCuisine] * 5;
     }
   });
 
-  // Handle rating (weight: high)
+  // Rating handling (weight: high)
   if (typeof restaurant.rating === 'number') {
-    // Rating is typically 0-5, multiply by 10 for more impact
-    score += restaurant.rating * 10;
-    
-    // Bonus points for high number of reviews (indicates reliability)
+    score += restaurant.rating * 5;
     if (restaurant.total_ratings) {
-      // Log scale to prevent extremely popular places from dominating
-      score += Math.min(Math.log10(restaurant.total_ratings) * 15, 30);
+      // Increased multiplier (10 instead of 5) and cap (10 instead of 5) to rank review count higher
+      score += Math.min(Math.log10(restaurant.total_ratings) * 10, 10);
     }
   }
 
-  // Handle price level (weight: moderate)
+  // Updated Price level handling:
   const priceLevel = restaurant.price_level ?? PriceLevel.PRICE_LEVEL_UNSPECIFIED;
-  if (preferences.acceptablePriceRanges.has(priceLevel)) {
+  if (priceLevel === PriceLevel.PRICE_LEVEL_UNSPECIFIED) {
+    // If price is unspecified, treat it neutrally.
+  } else if (priceLevel <= preferences.maxEffectivePrice) {
+    // Restaurant's price fits within the strict threshold: add a bonus.
     score += 5;
-  }
-  const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
-  if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel <= lowestAcceptablePrice) {
-    score += 8;
-  } else if (!preferences.acceptablePriceRanges.has(priceLevel)) {
+  } else {
+    // Restaurant's price exceeds the strict threshold: apply a penalty.
     score -= 8;
   }
 
-  // Handle dietary restrictions (weight: high - deal breaker)
+  // Dietary restrictions handling (weight: high)
   const features = restaurant.features || {};
   if (preferences.dietaryRestrictions.has('Vegetarian') && !features.serves_vegetarian) {
-    score -= 50; // Make this a stronger negative factor
+    score -= 50;
   }
 
   return score || 0;
@@ -248,7 +259,7 @@ export async function rankRestaurantsForEvent(
 ): Promise<HostDetails[]> {
   const results = await Promise.all(restaurants.map(async restaurant => {
     const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
-    
+
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
       address: restaurant.formattedAddress,
@@ -273,9 +284,9 @@ export async function rankRestaurantsForEvent(
       features: restaurant.features || {},
       reviews: []
     };
-    
+
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
-  
+
     return {
       restaraunt: restaurantWithCuisines,
       score,

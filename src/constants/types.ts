@@ -53,18 +53,6 @@ export interface HostDetails {
     ProsCons: string
   };
 
-export interface EventResponse {
-    id: string,
-    eventId: string,
-    dietaryRestrictions: string[],
-    preferredCuisines: string[],
-    antiPreferredCuisines: string[],
-    acceptablePriceRanges: string[],
-    comments?: string,
-    rankedCuisines: string[],
-    createdAt: Date,
-}
-
 export enum PriceLevel {
   PRICE_LEVEL_UNSPECIFIED = 0,
   PRICE_LEVEL_INEXPENSIVE = 1,
