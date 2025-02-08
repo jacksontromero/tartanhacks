@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -32,10 +34,11 @@ const PlacesFinder = () => {
   };
 
   return (
+    <>
     <div className="p-4 max-w-4xl mx-auto">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Pittsburgh Places Finder</h1>
-        <button onClick={fetchPlaces}
+        <Button onClick={fetchPlaces}
           className="rounded-full bg-primary px-10 py-3 font-semibold text-secondary-foreground shadow-lg transition hover:bg-primary/90">
             {loading ? (
               <>
@@ -45,7 +48,7 @@ const PlacesFinder = () => {
               ) : (
               'Find Places'
             )}
-          </button>
+          </Button>
     
       </div>
 
@@ -127,6 +130,7 @@ const PlacesFinder = () => {
         ))}
       </div>
     </div>
+    </>
   );
 };
 

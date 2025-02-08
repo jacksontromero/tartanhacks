@@ -40,7 +40,7 @@ interface PlaceDetails {
   }
   rating: number
   total_ratings: number
-  price_level: number
+  price_level: string
   phone_number: string
   website: string
   opening_hours: string[]
