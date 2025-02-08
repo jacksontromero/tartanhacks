@@ -1,5 +1,6 @@
 import SignInButton from "~/components/auth/SignInButton";
 import HostEventButton from "~/components/events/HostEventButton";
+import TestInput from "~/components/gemini/TestInput";
 import { auth } from "~/server/auth";
 
 export default async function HomePage() {
@@ -16,6 +17,7 @@ export default async function HomePage() {
           <SignInButton />
           {session && <HostEventButton />}
         </div>
+        <TestInput />
       </div>
     </main>
   );
