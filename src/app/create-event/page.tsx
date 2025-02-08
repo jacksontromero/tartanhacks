@@ -36,7 +36,6 @@ import { cn } from "~/lib/utils";
 import { MultiSelect } from "~/components/ui/multi-select";
 import { LOCATION_COORDINATES } from "~/constants/cuisines";
 
-
 const formSchema = z.object({
   title: z.string().min(2, {
     message: "Title must be at least 2 characters.",
@@ -74,22 +73,43 @@ export default function CreateEventPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const response = await fetch("/api/events", {
-        method: "POST",
+      const eventRes = await fetch('/api/events', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(values),
       });
 
-      const data = await response.json();
-      router.push(`/event/${data.id}`);
+      if (!eventRes.ok) {
+        throw new Error('Failed to create event');
+      }
+
+      const event = await eventRes.json();
+      router.push(`/event/${event.id}`);
+
+      const selectedLocation = LOCATIONS.find(loc => loc.name === values.location);
+      
+      if (selectedLocation) {
+        const placesRes = await fetch('/api/places', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event_id: event.id,
+            latitude: selectedLocation.lat,
+            longitude: selectedLocation.lng
+          })
+        });
+        
+        if (!placesRes.ok) {
+          console.error('Failed to fetch places');
+        }
+      }
     } catch (error) {
-      console.error("Failed to create event:", error);
+      console.error('Failed to submit:', error);
     }
-
-    const coords = LOCATION_COORDINATES[values.location];
-
   }
 
   return (
@@ -179,66 +199,63 @@ export default function CreateEventPage() {
             </div>
 
             <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Location</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value
-                            ? LOCATIONS.find(
-                                (location) => location === field.value
-                              )
-                            : "Select location"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Search location..." />
-                        <CommandList>
-                          <CommandEmpty>No location found.</CommandEmpty>
-                          <CommandGroup>
-                            {LOCATIONS.map((location) => (
-                              <CommandItem
-                                key={location}
-                                value={location}
-                                onSelect={() => {
-                                  form.setValue("location", location);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    location === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                {location}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+  control={form.control}
+  name="location"
+  render={({ field }) => (
+    <FormItem className="flex flex-col">
+      <FormLabel>Location</FormLabel>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            className={cn(
+              "w-full justify-between",
+              !field.value && "text-muted-foreground"
+            )}
+          >
+            {field.value
+              ? LOCATIONS.find(
+                  (location) => location.name === field.value
+                )?.name
+              : "Select location"}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0">
+          <Command>
+            <CommandInput placeholder="Search location..." />
+            <CommandList>
+              <CommandEmpty>No location found.</CommandEmpty>
+              <CommandGroup>
+                {LOCATIONS.map((location, index) => (
+                  <CommandItem
+                    key={`${location.name}-${index}`}
+                    value={location.name}
+                    onSelect={() => {
+                      form.setValue("location", location.name);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        location.name === field.value
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                    {location.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
             <FormField
               control={form.control}
               name="priceRanges"

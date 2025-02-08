@@ -45,16 +45,9 @@ export const CUISINE_MAPPINGS: { [key: string]: string } = {
 export const CUISINE_TYPES: string[] = Object.keys(CUISINE_MAPPINGS);
 
 export const LOCATIONS = [
-  "Downtown",
-  "Strip District",
-  "Oakland",
-  "Shadyside",
-  "Squirrel Hill",
-  "East Liberty",
-  "Lawrenceville",
-  "South Side",
-  "North Shore",
-  "Bloomfield"
+  { name: 'Downtown Pittsburgh', lat: 40.4406, lng: -79.9959 },
+  { name: 'Oakland', lat: 40.4421, lng: -79.9620 },
+  // Add more locations as needed
 ] as const;
 
 export const LOCATION_COORDINATES: { [key: string]: Area} = {
