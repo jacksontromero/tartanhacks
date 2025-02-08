@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { env } from "~/env";
 import { auth } from "~/server/auth";
+import { CUISINE_TYPES } from "~/constants/cuisines";
+
+const schema = {
+  description: "Cuisine type for input restaurant details",
+  type: SchemaType.STRING,
+  enum: CUISINE_TYPES,
+  nullable: false,
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -22,7 +30,12 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel(
-      { model: "gemini-2.0-flash-lite-preview-02-05" },
+      { model: "gemini-2.0-flash-lite-preview-02-05",
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: schema,
+       },
+      },
       {
         baseUrl: `https://gateway.ai.cloudflare.com/v1/${env.CLOUDFLARE_ACCOUNT_ID}/tartanhacks/google-ai-studio`,
       },
