@@ -1,5 +1,9 @@
-import { CUISINE_MAPPINGS, PriceLevel, PRICE_MAPPINGS } from "~/constants/cuisines";
-import { PlaceDetails, HostDetails } from "~/constants/types"
+import { CUISINE_MAPPINGS, PRICE_MAPPINGS } from "~/constants/cuisines";
+import { PlaceDetails, HostDetails, PriceLevel } from "~/constants/types"
+import { db } from "~/server/db";
+import { rankedPlaces } from "~/server/db/schema";
+import { eq, desc } from "drizzle-orm";
+import { eventResponses, apiLogs } from "~/server/db/schema";
 
 interface AggregatedPreferences {
     preferredCuisines: Record<string, number>
@@ -82,7 +86,7 @@ interface AggregatedPreferences {
     }
     // Check price range
     const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
-    if (restaurant.price_level != 0 && restaurant.price_level <= lowestAcceptablePrice) {
+    if (restaurant.price_level != PriceLevel.PRICE_LEVEL_UNSPECIFIED && restaurant.price_level <= lowestAcceptablePrice) {
         score += 10;
     } else if (!preferences.acceptablePriceRanges.has(restaurant.price_level)) {
         score -= 5;
@@ -99,12 +103,39 @@ interface AggregatedPreferences {
     return score;
   }
   
- // TOOD: add eventResponses interface
-  function filterAndRankRestaurants(restaurants: PlaceDetails[], eventResponses: any[]): HostDetails[] {
-    const preferences = aggregatePreferences(eventResponses);
-    return restaurants
+  async function filterAndRankRestaurants(event_id: string): Promise<HostDetails[]> {
+    // Get event responses
+    const responses = await db.query.eventResponses.findMany({
+      where: eq(eventResponses.eventId, event_id),
+    });
+
+    // Get latest API log with places data
+    const latestApiLog = await db.query.apiLogs.findFirst({
+      where: eq(apiLogs.event_id, event_id),
+      orderBy: (apiLogs, { desc }) => [desc(apiLogs.timestamp)],
+    });
+
+    if (!latestApiLog?.response?.places) {
+      throw new Error('No places data found for event');
+    }
+
+    const restaurants = latestApiLog.response.places as PlaceDetails[];
+    const preferences = aggregatePreferences(responses);
+
+    const results = restaurants
       .map(restaurant => ({ restaurant, score: scoreRestaurant(restaurant, preferences) }))
-      .filter(entry => entry.score > 0) // Ensure relevance
-      .sort((a, b) => b.score - a.score) // Rank by highest score
-      .map(entry => ({ restaraunt: entry.restaurant, score: entry.score }) );
+      .filter(entry => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(entry => ({ restaraunt: entry.restaurant, score: entry.score }));
+
+    // Insert ranked results into database
+    const rankedPlacesToInsert = results.map(result => ({
+      event_id,
+      place_details: result.restaraunt,
+      score: result.score
+    }));
+
+    await db.insert(rankedPlaces).values(rankedPlacesToInsert);
+
+    return results;
   }
