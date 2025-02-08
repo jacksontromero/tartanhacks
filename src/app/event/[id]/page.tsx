@@ -2,12 +2,13 @@ import { db } from "~/server/db";
 import { events } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { CalendarDays, Clock, MapPin } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Users } from "lucide-react";
 import CopyInviteButton from "~/components/events/CopyInviteButton";
 import RankedRestaurants from "~/components/rankings/RankedRestaurants";
 import { getRankingsForEvent } from "~/lib/ranking";
 import { auth } from "~/server/auth";
 import { QRCode } from 'qrcode.react';
+import { INVERSE_CUISINE_MAPPINGS } from "~/constants/cuisines";
 
 export default async function EventPage({
   params,
@@ -123,18 +124,56 @@ export default async function EventPage({
               </div>
             </div>
             {/* Metadata Card */}{
-              isHost && rankings && rankings.length > 0 &&
-            <div>
-              <h2 className="text-xl font-semibold text-primary pt-8">Overview</h2>
-                    <p className="mt-2">Number of Responses: <span className="font-medium">{data.totalParticipants}</span></p>
-                    <h4 className="mt-4 font-semibold">Overall Preferences</h4>
-                    <p>Preferred Cuisines: <span className="font-medium">{data.overallPreferences.preferred_cuisines.join(', ')}</span></p>
-                    <p>Anti-Preferred Cuisines: <span className="font-medium">{data.overallPreferences.antiPreferred_cuisines.join(', ')}</span></p>
-                    <p>Dietary Restrictions: <span className="font-medium">{data.overallPreferences.dietaryRestrictions.join(', ')}</span></p>
+              isHost && rankings && rankings.length > 0 && (
+                <div className="mt-8 p-6 bg-secondary/30 rounded-lg">
+                  <h2 className="text-xl font-semibold text-primary mb-4">Event Overview</h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {data.totalParticipants} {data.totalParticipants === 1 ? 'Response' : 'Responses'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-primary">Top Cuisine Preferences</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {data.overallPreferences.preferred_cuisines.map(cuisine => (
+                          <span key={cuisine} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                            {INVERSE_CUISINE_MAPPINGS[cuisine]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {data.overallPreferences.antiPreferred_cuisines.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-primary">Cuisines to Avoid</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {data.overallPreferences.antiPreferred_cuisines.map(cuisine => (
+                            <span key={cuisine} className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full">
+                              {cuisine}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {data.overallPreferences.dietaryRestrictions.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-primary">Dietary Restrictions</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {data.overallPreferences.dietaryRestrictions.map(restriction => (
+                            <span key={restriction} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">
+                              {restriction}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-            }
-            </>)}
-          </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
           {/* Restaurant Section - Keep consistent width */}
           {(isHost || finalRestaurant) && (

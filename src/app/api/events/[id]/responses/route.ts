@@ -11,6 +11,7 @@ export async function POST(
 
     const response = await db.insert(eventResponses).values({
       eventId: (await params).id,
+      name: body.name,
       email: body.email,
       dietaryRestrictions: JSON.stringify(body.dietaryRestrictions),
       preferredCuisines: JSON.stringify(body.preferredCuisines),
