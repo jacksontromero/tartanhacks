@@ -6,9 +6,10 @@ import RestaurantCard from "./RestaurantCard";
 
 interface RankedRestaurantsProps {
   rankings: HostDetails[];
+  eventId: string;
 }
 
-export default function RankedRestaurants({ rankings }: RankedRestaurantsProps) {
+export default function RankedRestaurants({ rankings, eventId }: RankedRestaurantsProps) {
   return (
     <motion.div
       className="space-y-8"
@@ -36,6 +37,7 @@ export default function RankedRestaurants({ rankings }: RankedRestaurantsProps) 
             restaurant={ranking.restaraunt}
             score={ranking.score}
             rank={index + 1}
+            eventId={eventId}
           />
         </motion.div>
       ))}

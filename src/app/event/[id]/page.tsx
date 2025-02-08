@@ -112,7 +112,7 @@ export default async function EventPage({
                 Restaurant Rankings
               </h2>
               {rankings && rankings.length > 0 ? (
-                <RankedRestaurants rankings={rankings} />
+                <RankedRestaurants rankings={rankings} eventId={event.id} />
               ) : (
                 <div className="rounded-lg bg-white p-8 shadow-lg text-center">
                   <p className="text-lg text-muted-foreground">

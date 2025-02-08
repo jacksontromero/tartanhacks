@@ -131,6 +131,8 @@ export const events = createTable("event", {
   hostId: varchar("host_id", { length: 255 })
     .notNull()
     .references(() => users.id),
+  finalRestaurantId: varchar("final_restaurant_id", { length: 255 }),
+  finalRestaurantDetails: json("final_restaurant_details").$type<PlaceDetails>(),
 });
 
 export type HostEvent = typeof events.$inferSelect;
