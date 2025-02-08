@@ -34,71 +34,7 @@ interface PlaceDetails {
   features: PlaceFeatures
 }
 
-// Constants
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
-const FIELDS = [
-  'name',
-  'formatted_address',
-  'rating',
-  'user_ratings_total',
-  'price_level',
-  'formatted_phone_number',
-  'website',
-  'opening_hours/weekday_text',
-  'type',
-  'wheelchair_accessible_entrance',
-  'serves_vegetarian_food',
-  'delivery',
-  'dine_in',
-  'takeout',
-  'geometry/location'
-]
-
-// Helper functions
-async function getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
-  const url = new URL('https://maps.googleapis.com/maps/api/place/details/json')
-  url.searchParams.append('place_id', placeId)
-  url.searchParams.append('fields', FIELDS.join(','))
-  url.searchParams.append('key', API_KEY!)
-
-  try {
-    const response = await fetch(url.toString())
-    const result = await response.json()
-
-    if (result.status === 'OK') {
-      const place = result.result
-      const location = place.geometry?.location || {}
-
-      return {
-        name: place.name,
-        address: place.formatted_address,
-        coordinates: {
-          lat: location.lat,
-          lng: location.lng
-        },
-        rating: place.rating,
-        total_ratings: place.user_ratings_total,
-        price_level: place.price_level,
-        phone_number: place.formatted_phone_number,
-        website: place.website,
-        opening_hours: place.opening_hours?.weekday_text || [],
-        place_id: placeId,
-        types: place.types || [],
-        features: {
-          wheelchair_accessible: place.wheelchair_accessible_entrance || false,
-          serves_vegetarian: place.serves_vegetarian_food || false,
-          delivery: place.delivery || false,
-          dine_in: place.dine_in || false,
-          takeout: place.takeout || false
-        }
-      }
-    }
-    return null
-  } catch (error) {
-    console.error(`Error getting details for place ${placeId}:`, error)
-    return null
-  }
-}
 
 async function searchPlaces(
   latitude: number,
@@ -107,44 +43,88 @@ async function searchPlaces(
   placeType: string,
   pageToken?: string
 ): Promise<{ places: PlaceDetails[], nextPageToken?: string }> {
-  const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json')
-  url.searchParams.append('location', `${latitude},${longitude}`)
-  url.searchParams.append('radius', radius.toString())
-  url.searchParams.append('type', placeType)
-  url.searchParams.append('key', API_KEY!)
+  const url = 'https://places.googleapis.com/v1/places:searchNearby'
   
-  if (pageToken) {
-    url.searchParams.append('pagetoken', pageToken)
+  const body = {
+    locationRestriction: {
+      circle: {
+        center: {
+          latitude: latitude,
+          longitude: longitude
+        },
+        radius: radius
+      }
+    },
+    includedTypes: [placeType],
+    maxResultCount: 20,
+    rankPreference: "RATING",
+    pageToken: pageToken
   }
 
   try {
-    const response = await fetch(url.toString())
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY!,
+        'X-Goog-FieldMask': [
+          'places.id',
+          'places.displayName',
+          'places.formattedAddress',
+          'places.location',
+          'places.rating',
+          'places.userRatingCount',
+          'places.primaryType',
+          'places.types',
+          'places.priceLevel',
+          'places.nationalPhoneNumber',
+          'places.websiteUri',
+          'places.currentOpeningHours',
+          'places.delivery',
+          'places.dineIn',
+          'places.takeout',
+          'places.wheelchairAccessibleEntrance',
+          'places.servesVegetarianFood',
+          'nextPageToken'
+        ].join(',')
+      },
+      body: JSON.stringify(body)
+    })
+
     const result = await response.json()
 
-    if (result.status !== 'OK' && result.status !== 'ZERO_RESULTS') {
-      console.error(`Error in nearby search: ${result.status}`)
+    if (!response.ok) {
+      console.error('Error from Google Places API:', result)
       return { places: [] }
     }
 
-    const places: PlaceDetails[] = []
-    const results = result.results || []
-
-    // Process places in batches of 5
-    for (let i = 0; i < results.length; i += 5) {
-      const batch = results.slice(i, i + 5)
-      const detailPromises = batch.map(place => getPlaceDetails(place.place_id))
-      const details = await Promise.all(detailPromises)
-      places.push(...details.filter(Boolean) as PlaceDetails[])
-      
-      // Add delay between batches
-      if (i + 5 < results.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+    const places: PlaceDetails[] = (result.places || []).map(place => ({
+      name: place.displayName?.text || '',
+      address: place.formattedAddress || '',
+      coordinates: {
+        lat: place.location?.latitude || 0,
+        lng: place.location?.longitude || 0
+      },
+      rating: place.rating || 0,
+      total_ratings: place.userRatingCount || 0,
+      price_level: place.priceLevel || 0,
+      phone_number: place.nationalPhoneNumber || '',
+      website: place.websiteUri || '',
+      opening_hours: place.currentOpeningHours?.weekdayDescriptions || [],
+      place_id: place.id,
+      types: place.types || [],
+      features: {
+        wheelchair_accessible: place.wheelchairAccessibleEntrance || false,
+        serves_vegetarian: place.servesVegetarianFood || false,
+        delivery: place.delivery || false,
+        dine_in: place.dineIn || false,
+        takeout: place.takeout || false
       }
-    }
+    }))
 
     return {
       places,
-      nextPageToken: result.next_page_token
+      nextPageToken: result.nextPageToken
     }
   } catch (error) {
     console.error('Error in nearby search:', error)
@@ -181,7 +161,6 @@ async function processArea(area: Area, radius: number): Promise<PlaceDetails[]> 
   return allResults
 }
 
-// API Route Handler
 export async function GET(request: Request) {
   if (!API_KEY) {
     return NextResponse.json(
