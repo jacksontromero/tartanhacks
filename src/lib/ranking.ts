@@ -3,7 +3,6 @@ import { PlaceDetails, PriceLevel } from "~/constants/types";
 import { db } from "~/server/db";
 import { eq, desc } from "drizzle-orm";
 import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
-import { classifyCuisine } from "~/lib/ai";
 
 export async function getRankingsForEvent(event_id: string) {
   // Get event responses
@@ -34,12 +33,6 @@ export async function getRankingsForEvent(event_id: string) {
   
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
-    const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
-    
-    // Get AI-classified cuisines
-    const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${yelpCuisines.join(", ")}`;
-    const aiCuisines = await classifyCuisine(restaurantInfo);
-    
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
       address: restaurant.formattedAddress,
@@ -60,7 +53,7 @@ export async function getRankingsForEvent(event_id: string) {
       opening_hours: [],
       place_id: restaurant.id,
       types: restaurant.types || [],
-      cuisines: [...aiCuisines, ...yelpCuisines],
+      cuisines: restaurant.cuisines || [],
       features: restaurant.features || {},
       reviews: [],
       main_image_url: restaurant.main_image_url || null,
@@ -75,22 +68,14 @@ export async function getRankingsForEvent(event_id: string) {
     };
   }));
 
-  // Normalize scores to 0-10 range
+  // Sort by score but don't normalize
   const sortedRankings = rankings.sort((a, b) => b.score - a.score);
-  const maxScore = Math.max(...sortedRankings.map(r => r.score));
-  const minScore = Math.min(...sortedRankings.map(r => r.score));
-  
-  const normalizedRankings = sortedRankings.map(ranking => ({
-    ...ranking,
-    score: maxScore === minScore ? 5 : // If all scores are equal, give them a middle score
-      ((ranking.score - minScore) / (maxScore - minScore)) * 10
-  }));
 
-  // Store ranked results with original scores
-  if (rankings.length > 0) {
+  // Store ranked results with scores
+  if (sortedRankings.length > 0) {
     try {
       await db.insert(rankedPlaces).values(
-        rankings.map(result => ({
+        sortedRankings.map(result => ({
           event_id,
           place_details: result.restaraunt,
           score: result.score
@@ -108,11 +93,11 @@ export async function getRankingsForEvent(event_id: string) {
       preferred_cuisines: Object.keys(preferences.preferredCuisines),
       antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
     },
-    rankings: normalizedRankings,
+    rankings: sortedRankings,
     meta: {
       total_responses: responses.length,
       total_restaurants: latestApiLog.response.places.length,
-      ranked_restaurants: normalizedRankings.length
+      ranked_restaurants: sortedRankings.length
     }
   };
 } 
@@ -203,46 +188,52 @@ export function scoreRestaurant(restaurant: PlaceDetails, preferences: Aggregate
   // Ensure restaurant has required properties
   if (!restaurant) return 0;
 
-  // Handle cuisines/types
+  // Handle cuisines/types (weight: moderate)
   const cuisines = restaurant.cuisines || restaurant.types || [];
   cuisines.forEach(cuisine => {
     if (preferences.preferredCuisines[cuisine]) {
-      score += preferences.preferredCuisines[cuisine];
+      score += preferences.preferredCuisines[cuisine] * 5;
     }
     if (preferences.antiPreferredCuisines[cuisine]) {
-      score -= preferences.antiPreferredCuisines[cuisine] * 2;
+      score -= preferences.antiPreferredCuisines[cuisine] * 10;
     }
     const rankIndex = preferences.rankedCuisines.indexOf(cuisine);
     if (rankIndex !== -1) {
-      score += (preferences.rankedCuisines.length - rankIndex) * 2;
+      score += (preferences.rankedCuisines.length - rankIndex) * 3;
     }
   });
 
-  // Handle price level
+  // Handle rating (weight: high)
+  if (typeof restaurant.rating === 'number') {
+    // Rating is typically 0-5, multiply by 10 for more impact
+    score += restaurant.rating * 10;
+    
+    // Bonus points for high number of reviews (indicates reliability)
+    if (restaurant.total_ratings) {
+      // Log scale to prevent extremely popular places from dominating
+      score += Math.min(Math.log10(restaurant.total_ratings) * 15, 30);
+    }
+  }
+
+  // Handle price level (weight: moderate)
   const priceLevel = restaurant.price_level ?? PriceLevel.PRICE_LEVEL_UNSPECIFIED;
   if (preferences.acceptablePriceRanges.has(priceLevel)) {
     score += 5;
   }
-
   const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
   if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel <= lowestAcceptablePrice) {
-    score += 10;
+    score += 8;
   } else if (!preferences.acceptablePriceRanges.has(priceLevel)) {
-    score -= 5;
+    score -= 8;
   }
 
-  // Handle dietary restrictions
+  // Handle dietary restrictions (weight: high - deal breaker)
   const features = restaurant.features || {};
   if (preferences.dietaryRestrictions.has('Vegetarian') && !features.serves_vegetarian) {
-    score -= 10;
+    score -= 50; // Make this a stronger negative factor
   }
 
-  // Handle rating
-  if (typeof restaurant.rating === 'number') {
-    score += restaurant.rating;
-  }
-
-  return score || 0; // Ensure we return 0 instead of null/undefined
+  return score || 0;
 }
 
 export async function rankRestaurantsForEvent(
