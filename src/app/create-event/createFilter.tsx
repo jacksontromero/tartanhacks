@@ -6,6 +6,7 @@ interface AggregatedPreferences {
     antiPreferredCuisines: Record<string, number>
     dietaryRestrictions: Set<string>
     acceptablePriceRanges: Set<PriceLevel>
+    rankedCuisines: string[]
   }
   
   function aggregatePreferences(eventResponses: any[]): AggregatedPreferences {
@@ -13,9 +14,11 @@ interface AggregatedPreferences {
       preferredCuisines: {},
       antiPreferredCuisines: {},
       dietaryRestrictions: new Set(),
-      acceptablePriceRanges: new Set()
+      acceptablePriceRanges: new Set(),
+      rankedCuisines: [],
     };
   
+    const cuisineRankingScores: Record<string, number[]> = {};
     eventResponses.forEach(response => {
       response.preferredCuisines.forEach((cuisine: string) => {
         let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
@@ -32,7 +35,25 @@ interface AggregatedPreferences {
         let priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
         preferences.acceptablePriceRanges.add(priceMap);
       });
+      // Aggregate ranked cuisines
+      response.rankedCuisines.forEach((cuisine: string, index: number) => {
+        if (!cuisineRankingScores[cuisine]) {
+          cuisineRankingScores[cuisine] = [];
+        }
+        cuisineRankingScores[cuisine].push(index);
+      });
     });
+  
+    // Compute average ranking scores and sort cuisines by preference
+    const aggregatedRanking = Object.entries(cuisineRankingScores)
+      .map(([cuisine, rankings]) => ({
+        cuisine,
+        avgRank: rankings.reduce((sum, rank) => sum + rank, 0) / rankings.length
+      }))
+      .sort((a, b) => a.avgRank - b.avgRank) // Lower average rank is better
+      .map(entry => entry.cuisine);
+  
+    preferences.rankedCuisines = aggregatedRanking;
   
     return preferences;
   }
@@ -47,6 +68,11 @@ interface AggregatedPreferences {
       }
       if (preferences.antiPreferredCuisines[cuisine]) {
         score -= preferences.antiPreferredCuisines[cuisine] * 2; // Penalize anti-preferences
+      }
+      // Boost score based on ranked cuisines
+      const rankIndex = preferences.rankedCuisines.indexOf(cuisine);
+      if (rankIndex !== -1) {
+        score += (preferences.rankedCuisines.length - rankIndex) * 2;
       }
     });
 
@@ -82,4 +108,3 @@ interface AggregatedPreferences {
       .sort((a, b) => b.score - a.score) // Rank by highest score
       .map(entry => ({ restaraunt: entry.restaurant, score: entry.score }) );
   }
-  

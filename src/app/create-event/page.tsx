@@ -34,6 +34,8 @@ import {
 import { CUISINE_TYPES, LOCATIONS, PRICE_RANGES } from "~/constants/cuisines";
 import { cn } from "~/lib/utils";
 import { MultiSelect } from "~/components/ui/multi-select";
+import { LOCATION_COORDINATES } from "~/constants/cuisines";
+
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -85,6 +87,9 @@ export default function CreateEventPage() {
     } catch (error) {
       console.error("Failed to create event:", error);
     }
+
+    const coords = LOCATION_COORDINATES[values.location];
+
   }
 
   return (

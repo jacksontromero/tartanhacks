@@ -1,5 +1,3 @@
-import { PriceLevel } from '~/constants/cuisines'
-
 // Types
 export interface Area {
     name: string
@@ -52,4 +50,23 @@ export interface HostDetails {
     restaraunt: PlaceDetails,
     score: number,
   };
-  
+
+export interface EventResponse {
+    id: string,
+    eventId: string,
+    dietaryRestrictions: string[],
+    preferredCuisines: string[],
+    antiPreferredCuisines: string[],
+    acceptablePriceRanges: string[],
+    comments?: string,
+    rankedCuisines: string[],
+    createdAt: Date,
+}
+
+export enum PriceLevel {
+    PRICE_LEVEL_UNSPECIFIED = 0,
+    PRICE_LEVEL_INEXPENSIVE = 1,
+    PRICE_LEVEL_MODERATE = 2,
+    PRICE_LEVEL_EXPENSIVE = 3,
+    PRICE_LEVEL_VERY_EXPENSIVE = 4
+  };
