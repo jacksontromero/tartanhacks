@@ -3,6 +3,7 @@ import { PlaceDetails, PriceLevel } from "~/constants/types";
 import { db } from "~/server/db";
 import { eq, desc } from "drizzle-orm";
 import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
+import { classifyCuisine } from "~/lib/ai";
 
 export async function getRankingsForEvent(event_id: string) {
   // Get event responses
@@ -26,19 +27,61 @@ export async function getRankingsForEvent(event_id: string) {
 
   // Aggregate preferences
   const preferences = aggregatePreferences(responses);
-
+  
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
-    const result = await rankRestaurantsForEvent(
-      event_id,
-      [restaurant],
-      preferences,
-      new Request('http://localhost:3000')
-    );
-    return result[0];
+    const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
+    
+    // Get AI-classified cuisines
+    const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${yelpCuisines.join(", ")}`;
+    const aiCuisines = await classifyCuisine(restaurantInfo);
+    
+    const restaurantWithCuisines: PlaceDetails = {
+      name: restaurant.displayName.text,
+      address: restaurant.formattedAddress,
+      coordinates: {
+        lat: restaurant.location?.latitude,
+        lng: restaurant.location?.longitude
+      },
+      rating: calculateAggregateRating(
+        restaurant.rating,
+        restaurant.userRatingCount,
+        restaurant.yelp?.rating,
+        restaurant.yelp?.review_count
+      ),
+      total_ratings: (restaurant.userRatingCount || 0) + (restaurant.yelp?.review_count || 0),
+      price_level: restaurant.yelp?.price?.length || 2,
+      phone_number: restaurant.yelp?.phone || '',
+      website: restaurant.yelp?.url || '',
+      opening_hours: [],
+      place_id: restaurant.id,
+      types: restaurant.types || [],
+      cuisines: [...aiCuisines, ...yelpCuisines],
+      features: restaurant.features || {},
+      reviews: []
+    };
+    
+    const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
+    
+    return {
+      restaraunt: restaurantWithCuisines,
+      score,
+      ProsCons: ""
+    };
   }));
 
-  // Store ranked results
+  // Normalize scores to 0-10 range
+  const sortedRankings = rankings.sort((a, b) => b.score - a.score);
+  const maxScore = Math.max(...sortedRankings.map(r => r.score));
+  const minScore = Math.min(...sortedRankings.map(r => r.score));
+  
+  const normalizedRankings = sortedRankings.map(ranking => ({
+    ...ranking,
+    score: maxScore === minScore ? 5 : // If all scores are equal, give them a middle score
+      ((ranking.score - minScore) / (maxScore - minScore)) * 10
+  }));
+
+  // Store ranked results with original scores
   if (rankings.length > 0) {
     try {
       await db.insert(rankedPlaces).values(
@@ -60,14 +103,14 @@ export async function getRankingsForEvent(event_id: string) {
       preferred_cuisines: Object.keys(preferences.preferredCuisines),
       antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
     },
-    rankings: rankings.sort((a, b) => b.score - a.score),
+    rankings: normalizedRankings,
     meta: {
       total_responses: responses.length,
       total_restaurants: latestApiLog.response.places.length,
-      ranked_restaurants: rankings.length
+      ranked_restaurants: normalizedRankings.length
     }
   };
-}
+} 
 
 function calculateAggregateRating(
   googleRating?: number,
@@ -112,12 +155,12 @@ export function aggregatePreferences(eventResponses: any[]): AggregatedPreferenc
     const rankedCuisines = JSON.parse(response.rankedCuisines);
 
     preferredCuisines.forEach((cuisine: string) => {
-      const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
       preferences.preferredCuisines[cuisineMap] = (preferences.preferredCuisines[cuisineMap] || 0) + 1;
     });
 
     antiPreferredCuisines.forEach((cuisine: string) => {
-      const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
       preferences.antiPreferredCuisines[cuisineMap] = (preferences.antiPreferredCuisines[cuisineMap] || 0) + 1;
     });
 
@@ -126,7 +169,7 @@ export function aggregatePreferences(eventResponses: any[]): AggregatedPreferenc
     });
 
     acceptablePriceRanges.forEach((price: string) => {
-      const priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
+      let priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
       preferences.acceptablePriceRanges.add(priceMap);
     });
 
@@ -177,7 +220,7 @@ export function scoreRestaurant(restaurant: PlaceDetails, preferences: Aggregate
   }
 
   const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
-  if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel.valueOf() <= lowestAcceptablePrice) {
+  if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel <= lowestAcceptablePrice) {
     score += 10;
   } else if (!preferences.acceptablePriceRanges.has(priceLevel)) {
     score -= 5;
@@ -205,7 +248,7 @@ export async function rankRestaurantsForEvent(
 ): Promise<HostDetails[]> {
   const results = await Promise.all(restaurants.map(async restaurant => {
     const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
-
+    
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
       address: restaurant.formattedAddress,
@@ -230,9 +273,9 @@ export async function rankRestaurantsForEvent(
       features: restaurant.features || {},
       reviews: []
     };
-
+    
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
-
+  
     return {
       restaraunt: restaurantWithCuisines,
       score,
