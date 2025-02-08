@@ -145,13 +145,12 @@ export const eventResponses = createTable("event_response", {
   antiPreferredCuisines: text("anti_preferred_cuisines").notNull(),
   acceptablePriceRanges: text("acceptable_price_ranges").notNull(),
   comments: text("comments"),
+  rankedCuisines: text("ranked_cuisines").notNull(),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,
   }).default(sql`CURRENT_TIMESTAMP`),
 });
-
-
 
 export const places = createTable("place", {
   id: varchar("id", { length: 255 })
