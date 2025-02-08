@@ -90,9 +90,11 @@ export default function RestaurantCard({
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-primary">{restaurant.name}</h2>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
-                  Score: {score.toFixed(1)}
-                </span>
+                {!isFinal && (
+                  <span className="rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
+                    Score: {score.toFixed(1)}
+                  </span>
+                )}
                 {!isFinal && (
                   <Button
                     variant="ghost"
