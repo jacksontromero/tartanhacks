@@ -18,16 +18,11 @@ export async function POST(
 ) {
   const body = await req.json();
 
-  console.log(body)
-
   const result = responseSchema.safeParse(body);
 
   if (!result.success) {
-    console.log(result.error)
-    return new NextResponse("Invalid request body", { status: 400 });
+    return new NextResponse(`Invalid request body ${result.error}`, { status: 400 });
   }
-
-  console.log(result.data)
 
   const response = await db.insert(eventResponses).values({
     eventId: (await params).id,
