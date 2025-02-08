@@ -30,7 +30,7 @@ export const RSVPNotificationEmail = ({
           <Text>
             A new guest has responded with their preferences for your event "{eventName}" on {eventDate}. Check out your dashboard for updates to the restaurant options!
           </Text>
-          <Button href={`${process.env.NEXT_PUBLIC_APP_URL}/dashboard/events`}>
+          <Button href={`https://host-table.co/`}>
             View Event Dashboard
           </Button>
         </Container>
