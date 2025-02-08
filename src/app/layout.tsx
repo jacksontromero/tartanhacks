@@ -3,6 +3,7 @@ import "~/styles/globals.css";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
+import Navbar from "~/components/nav/Navbar";
 
 export const metadata: Metadata = {
   title: "Where2Eat",
@@ -15,11 +16,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
-      <body>
-        <SessionProvider>
-
-          {children}
-        </SessionProvider>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <Navbar />
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

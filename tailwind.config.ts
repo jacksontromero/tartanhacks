@@ -3,7 +3,7 @@ import { fontFamily } from "tailwindcss/defaultTheme";
 
 export default {
     darkMode: ["class"],
-    content: ["./src/**/*.tsx"],
+    content: ["./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
   	extend: {
   		fontFamily: {
@@ -18,7 +18,7 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
-  			background: 'hsl(var(--background))',
+  			background: "#f0fdf4", // Very light mint
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
@@ -29,20 +29,20 @@ export default {
   				foreground: 'hsl(var(--popover-foreground))'
   			},
   			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
+  				DEFAULT: "#4ade80", // Light green
+  				foreground: "#ffffff",
   			},
   			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
+  				DEFAULT: "#bbf7d0", // Lighter pastel green
+  				foreground: "#166534", // Dark green for text
   			},
   			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
+  				DEFAULT: "#dcfce7",
+  				foreground: "#166534",
   			},
   			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
+  				DEFAULT: "#86efac",
+  				foreground: "#166534",
   			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',

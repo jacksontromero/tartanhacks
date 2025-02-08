@@ -11,10 +11,15 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { title } = body;
+  const { title, description, date, priceRange, cuisinePreference, dietaryRestrictions } = body;
 
   const event = await db.insert(events).values({
     title,
+    description,
+    date: new Date(date),
+    priceRange,
+    cuisinePreference,
+    dietaryRestrictions: dietaryRestrictions ? JSON.stringify(dietaryRestrictions) : null,
     hostId: session.user.id,
   }).returning();
 

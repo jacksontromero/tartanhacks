@@ -113,6 +113,12 @@ export const events = createTable("event", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  date: timestamp("date", { mode: "date", withTimezone: true }).notNull(),
+  location: varchar("location", { length: 255 }),
+  priceRange: varchar("price_range", { length: 50 }),
+  cuisinePreference: varchar("cuisine_preference", { length: 255 }),
+  dietaryRestrictions: text("dietary_restrictions"),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,
