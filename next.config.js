@@ -5,6 +5,10 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  images: {
+    domains: ['www.yelp.com', /* other domains */],
+  },
+};
 
 export default config;

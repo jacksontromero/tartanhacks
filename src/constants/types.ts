@@ -4,7 +4,7 @@ export interface Area {
     lat: number
     lng: number
   };
-  
+
 export interface PlaceFeatures {
     wheelchair_accessible: boolean
     serves_vegetarian: boolean
@@ -12,7 +12,7 @@ export interface PlaceFeatures {
     dine_in: boolean
     takeout: boolean
   };
-  
+
 export interface PlaceReview {
     name: string
     text: string
@@ -25,7 +25,7 @@ export interface PlaceReview {
       uri?: string
     }
   };
-  
+
 export interface PlaceDetails {
     name: string
     address: string
@@ -38,6 +38,7 @@ export interface PlaceDetails {
     price_level: PriceLevel
     phone_number: string
     website: string
+    main_image_url?: string
     opening_hours: string[]
     place_id: string
     types: string[]
