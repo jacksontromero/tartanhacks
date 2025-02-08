@@ -12,7 +12,11 @@ export async function getRankingsForEvent(event_id: string) {
   });
 
   if (responses.length === 0) {
-    throw new Error('No responses found for this event');
+    return {
+      rankings: [],
+      totalParticipants: 0,
+      averageScore: 0,
+    };
   }
 
   // Get latest API log with places data
@@ -58,7 +62,8 @@ export async function getRankingsForEvent(event_id: string) {
       types: restaurant.types || [],
       cuisines: [...aiCuisines, ...yelpCuisines],
       features: restaurant.features || {},
-      reviews: []
+      reviews: [],
+      main_image_url: restaurant.main_image_url || null,
     };
     
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
