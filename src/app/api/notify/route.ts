@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '~/server/db';
 import { events, users } from '~/server/db/schema';
 import { sendRSVPNotification } from '~/lib/notifications';
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 interface EventDetails {
   eventId: string;

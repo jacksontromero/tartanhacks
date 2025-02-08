@@ -35,7 +35,7 @@ export async function getRankingsForEvent(event_id: string) {
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
     // Try to get cuisines if they're missing
-    let cuisines = restaurant.cuisines || [];
+    const cuisines = restaurant.cuisines || [];
 
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
@@ -222,7 +222,7 @@ export function scoreRestaurant(restaurant: PlaceDetails, preferences: Aggregate
   const priceLevel = restaurant.price_level ?? PriceLevel.PRICE_LEVEL_UNSPECIFIED;
   if (priceLevel === PriceLevel.PRICE_LEVEL_UNSPECIFIED) {
     // If price is unspecified, treat it neutrally.
-  } else if (priceLevel <= preferences.maxEffectivePrice) {
+  } else if (priceLevel.valueOf() <= preferences.maxEffectivePrice) {
     // Restaurant's price fits within the strict threshold: add a bonus.
     score += 5;
   } else {

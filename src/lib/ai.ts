@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
 
 // Existing model for cuisine classification
 const cuisineModel = genAI.getGenerativeModel(
-  { 
+  {
     model: "gemini-2.0-flash-lite-preview-02-05",
     generationConfig: {
       responseMimeType: "application/json",
@@ -28,7 +28,7 @@ const cuisineModel = genAI.getGenerativeModel(
 
 // New model for dietary restrictions
 const dietaryModel = genAI.getGenerativeModel(
-  { 
+  {
     model: "gemini-2.0-flash-lite-preview-02-05",
     generationConfig: {
       responseMimeType: "application/json",
@@ -53,7 +53,7 @@ export async function classifyCuisine(input: string): Promise<string[]> {
     const result = await cuisineModel.generateContent([
       "Given this data for a restaurant description and reviews, determine the cuisine that best describes the restaurant: " + input
     ]);
-    const response = await result.response;
+    const response = result.response;
     return JSON.parse(response.text());
   } catch (error) {
     console.error("Error classifying cuisine:", error);
@@ -66,10 +66,10 @@ export async function classifyDietaryRestrictions(input: string): Promise<string
     const result = await dietaryModel.generateContent([
       "Based on this restaurant's menu items, features, and reviews, determine which dietary restrictions it can accommodate: " + input
     ]);
-    const response = await result.response;
+    const response = result.response;
     return JSON.parse(response.text());
   } catch (error) {
     console.error("Error classifying dietary restrictions:", error);
     return [];
   }
-} 
+}
