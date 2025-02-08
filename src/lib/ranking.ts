@@ -12,7 +12,11 @@ export async function getRankingsForEvent(event_id: string) {
   });
 
   if (responses.length === 0) {
-    throw new Error('No responses found for this event');
+    return {
+      rankings: [],
+      totalParticipants: 0,
+      averageScore: 0,
+    };
   }
 
   // Get latest API log with places data

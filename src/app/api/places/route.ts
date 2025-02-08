@@ -34,6 +34,37 @@ async function searchYelp(name: string, latitude: number, longitude: number) {
   }
 }
 
+// Add this helper function
+async function getPlacePhoto(place_id: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://places.googleapis.com/v1/places/${place_id}?fields=photos`, {
+      headers: {
+        'X-Goog-Api-Key': API_KEY!,
+      }
+    });
+
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data.photos?.[0]?.name) return null;
+
+    // Get the first photo
+    const photoResponse = await fetch(`https://places.googleapis.com/v1/${data.photos[0].name}/media`, {
+      headers: {
+        'X-Goog-Api-Key': API_KEY!,
+      }
+    });
+
+    if (!photoResponse.ok) return null;
+    const photoData = await photoResponse.json();
+    return photoData.photoUri || null;
+
+  } catch (error) {
+    console.error('Error fetching place photo:', error);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   console.log('API request started');
   const startTime = Date.now()
@@ -141,17 +172,19 @@ export async function POST(request: Request) {
         if (data.places) {
           for (const place of data.places) {
             if (!allPlaces.has(place.id)) {
-              // Get Yelp data directly without Google details
-              const yelpData = await searchYelp(
-                place.displayName?.text,
-                place.location?.latitude,
-                place.location?.longitude
-              );
-              console.log(`Yelp data for ${place.displayName?.text}:`, yelpData);
+              const [yelpData, photoUrl] = await Promise.all([
+                searchYelp(
+                  place.displayName?.text,
+                  place.location?.latitude,
+                  place.location?.longitude
+                ),
+                getPlacePhoto(place.id)
+              ]);
 
               allPlaces.set(place.id, {
                 ...place,
                 yelp: yelpData,
+                main_image_url: photoUrl || yelpData?.image_url || null,
                 features: {
                   wheelchair_accessible: place.wheelchairAccessibleEntrance,
                   serves_vegetarian: place.servesVegetarianFood,
