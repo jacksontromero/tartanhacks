@@ -35,7 +35,8 @@ async def get_place_details(session: aiohttp.ClientSession, place_id: str) -> Di
         'delivery',
         'dine_in',
         'takeout',
-        'geometry/location'  # This will give us lat/lng
+        'geometry/location', # This will give us lat/lng
+        'reviews'  
     ]
     
     params = {
@@ -74,7 +75,8 @@ async def get_place_details(session: aiohttp.ClientSession, place_id: str) -> Di
                             'delivery': place.get('delivery', False),
                             'dine_in': place.get('dine_in', False),
                             'takeout': place.get('takeout', False)
-                        }
+                        },
+                        'reviews': place.get('reviews', False)
                     }
                 else:
                     if result.get('status') != 'ZERO_RESULTS':
@@ -99,7 +101,8 @@ async def search_places(session: aiohttp.ClientSession, latitude: float, longitu
             'location': f"{latitude},{longitude}",
             'radius': radius,
             'type': place_type,
-            'key': API_KEY
+            'key': API_KEY,
+
         }
         
         if next_page_token:
@@ -140,8 +143,10 @@ async def process_area(session: aiohttp.ClientSession, area: Dict, radius: int) 
     """Process a single area for all place types."""
     print(f"\nSearching in {area['name']}...")
     all_results = []
+
+    place_types = ['mexican_restaurant'] # don't include 'meal_takeaway' only
     
-    for place_type in ['restaurant', 'cafe', 'meal_takeaway']:
+    for place_type in place_types:
         print(f"Searching for {place_type}s...")
         results = await search_places(session, area['lat'], area['lng'], radius, place_type)
         all_results.extend(results)
@@ -152,14 +157,14 @@ async def process_area(session: aiohttp.ClientSession, area: Dict, radius: int) 
 async def main():
     # Pittsburgh areas (central areas first)
     areas = [
-        {"name": "Downtown", "lat": 40.4406, "lng": -79.9959},
-        # {"name": "Strip District", "lat": 40.4513, "lng": -79.9761},
+        # {"name": "Downtown", "lat": 40.4406, "lng": -79.9959},
+        {"name": "Strip District", "lat": 40.4513, "lng": -79.9761},
         # {"name": "Oakland", "lat": 40.4421, "lng": -79.9568},
         # {"name": "South Side", "lat": 40.4282, "lng": -79.9729},
         # {"name": "Shadyside", "lat": 40.4552, "lng": -79.9329}
     ]
     
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=15)
     connector = aiohttp.TCPConnector(limit=CONCURRENT_REQUESTS)
     
     async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
