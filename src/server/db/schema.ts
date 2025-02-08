@@ -128,3 +128,49 @@ export const events = createTable("event", {
     .notNull()
     .references(() => users.id),
 });
+export const restaurants = createTable("restaurants", {
+  id: varchar("id", {length: 255})
+  .notNull()
+  .primaryKey()
+  .$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", {length: 255 }).notNull(),
+  address: text("address").notNull(),
+  latitude: numeric("latitude").notNull(),
+  longitude: numeric("longitude").notNull(),
+  rating: integer("rating").notNull(),
+  totalRatings: integer("total_ratings"),
+  phoneNumber: varchar("phone_number", {length: 255}),
+  priceLevel: varchar("price_level", {length: 255}).notNull(),
+  website: text("website"),
+  openingHours: text("openingHours"), // need to combine opening hours list into single string
+  wheelchairAccessible: boolean("wheelchair_accessible"),
+  vegetarianFriendly: boolean("vegetarian_friendly"),
+  
+  eventID: varchar("event_id", {length: 255})
+    .notNull()
+    .references(() => events.id)
+})
+
+export const restaurantReviews = createTable("restaurant_reviews", {
+  id: varchar("id", {length: 255})
+  .notNull()
+  .primaryKey()
+  .$defaultFn(() => crypto.randomUUID()),
+  name: varchar("name", {length: 255}).notNull(),
+  review: text("review").notNull(),
+  rating: integer("rating").notNull(),
+  restaurantID : varchar("restaurant_id", {length: 255})
+    .notNull()
+    .references(() => restaurants.id)
+})
+
+export const restaurantTypes = createTable("restaurant_types", {
+  id: varchar("id", {length:255})
+  .notNull()
+  .primaryKey()
+  .$defaultFn(() => crypto.randomUUID()),
+  type: varchar("type", {length: 255}).notNull(),
+  restaurantID: varchar("restaurant_id", {length:255})
+    .notNull()
+    .references(() => restaurants.id)
+})
