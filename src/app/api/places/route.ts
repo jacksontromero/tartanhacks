@@ -1,7 +1,7 @@
 // app/api/places/route.ts
 import { NextResponse } from 'next/server'
-import { db } from "src/server/db";
-import { places, placeReviews } from "src/server/db/schema";
+import { db } from "@/server/db";
+import { places, placeReviews } from "@/server/db/schema";
 
 // Types
 interface Area {
@@ -51,7 +51,59 @@ interface PlaceDetails {
   reviews: PlaceReview[]
 }
 
+interface GooglePlacesApiResponse {
+  places?: {
+    id: string
+    displayName?: { text: string }
+    formattedAddress?: string
+    location?: { latitude: number; longitude: number }
+    rating?: number
+    userRatingCount?: number
+    priceLevel?: string
+    internationalPhoneNumber?: string
+    websiteUri?: string
+    currentOpeningHours?: { weekdayDescriptions: string[] }
+    types?: string[]
+    cuisines?: string[]
+    accessibility?: { wheelchairAccessibleEntrance: boolean }
+    servesVegetarianFood?: boolean
+    delivery?: boolean
+    dineIn?: boolean
+    takeout?: boolean
+    reviews?: Array<{
+      name?: string
+      text?: string
+      rating?: number
+      relativePublishTimeDescription?: string
+      publishTime?: string
+      authorAttribution?: {
+        displayName?: string
+        photoUri?: string
+        uri?: string
+      }
+    }>
+  }[]
+  nextPageToken?: string
+}
+
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
+
+function mapPriceLevel(priceLevel: string | undefined): number {
+  switch (priceLevel) {
+    case 'PRICE_LEVEL_FREE':
+      return 0;
+    case 'PRICE_LEVEL_INEXPENSIVE':
+      return 1;
+    case 'PRICE_LEVEL_MODERATE':
+      return 2;
+    case 'PRICE_LEVEL_EXPENSIVE':
+      return 3;
+    case 'PRICE_LEVEL_VERY_EXPENSIVE':
+      return 4;
+    default:
+      return 0;
+  }
+}
 
 async function searchPlaces(
   latitude: number,
@@ -107,7 +159,7 @@ async function searchPlaces(
           'places.dineIn',
           'places.takeout',
           'places.servesVegetarianFood',
-          'places.types',
+          'places.cuisines',
           'places.reviews',
         ].join(',')
       },
@@ -117,7 +169,7 @@ async function searchPlaces(
     console.timeEnd('🕒 Places API Request')
     console.log('📥 Response status:', response.status, response.statusText)
 
-    const result = await response.json()
+    const result = (await response.json()) as GooglePlacesApiResponse
 
     if (!response.ok) {
       console.error('❌ Error from Google Places API:', {
@@ -141,7 +193,7 @@ async function searchPlaces(
       },
       rating: place.rating || 0,
       total_ratings: place.userRatingCount || 0,
-      price_level: place.priceLevel || 0,
+      price_level: mapPriceLevel(place.priceLevel),
       phone_number: place.internationalPhoneNumber || '',
       website: place.websiteUri || '',
       opening_hours: place.currentOpeningHours?.weekdayDescriptions || [],
@@ -233,11 +285,10 @@ async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[
   
   try {
     for (const place of placesToSave) {
-      console.log(`📍 Saving place: ${place.name}`);
+      console.log(`📍 Saving place: ${place.name} (Price Level: ${place.price_level})`);
       
       // Insert place
-      const [savedPlace] = await db.insert(places).values({
-        id: place.place_id,
+      const savedPlace = await db.insert(places).values({
         eventId: eventId,
         name: place.name,
         address: place.address,
@@ -253,7 +304,11 @@ async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[
         cuisineTypes: place.cuisines,
         features: place.features,
         openingHours: place.opening_hours,
-      }).returning();
+      }).returning().then(results => results[0]);
+
+      if (!savedPlace) {
+        throw new Error(`Failed to save place: ${place.name}`);
+      }
 
       // Insert reviews
       if (place.reviews?.length > 0) {
@@ -262,7 +317,7 @@ async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[
             placeId: savedPlace.id,
             name: review.name,
             text: review.text,
-            rating: review.rating,
+            rating: review.rating.toString(),
             publishTime: review.publishTime ? new Date(review.publishTime) : null,
             relativePublishTime: review.relativePublishTimeDescription,
             authorName: review.authorAttribution?.displayName,
