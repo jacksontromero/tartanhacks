@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         const cuisines = await classifyCuisine(restaurantInfo);
         return {
           ...place,
-          cuisines
+          cuisines: [...cuisines, ...place.types]
         };
       } catch (error) {
         console.error(`Failed to get cuisines for ${place.displayName?.text}:`, error);
