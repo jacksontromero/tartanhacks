@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
 import Navbar from "~/components/nav/Navbar";
+import { Toaster } from "~/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Where2Eat",
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="h-screen bg-background font-sans antialiased">
         <Navbar />
         <SessionProvider>{children}</SessionProvider>
+        <Toaster />
       </body>
     </html>
   );

@@ -53,9 +53,12 @@ const multiSelectVariants = cva(
   }
 );
 
-/**
- * Props for MultiSelect component
- */
+type Option = {
+  label: string;
+  value: string;
+  disabled?: boolean;
+};
+
 interface MultiSelectProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof multiSelectVariants> {
@@ -63,14 +66,7 @@ interface MultiSelectProps
    * An array of option objects to be displayed in the multi-select component.
    * Each option object has a label, value, and an optional icon.
    */
-  options: {
-    /** The text to display for the option. */
-    label: string;
-    /** The unique value associated with the option. */
-    value: string;
-    /** Optional icon component to display alongside the option. */
-    icon?: React.ComponentType<{ className?: string }>;
-  }[];
+  options: Option[];
 
   /**
    * Callback function triggered when the selected values change.
@@ -211,7 +207,6 @@ export const MultiSelect = React.forwardRef<
                 <div className="flex flex-wrap items-center">
                   {selectedValues.slice(0, maxCount).map((value) => {
                     const option = options.find((o) => o.value === value);
-                    const IconComponent = option?.icon;
                     return (
                       <Badge
                         key={value}
@@ -221,9 +216,6 @@ export const MultiSelect = React.forwardRef<
                         )}
                         style={{ animationDuration: `${animation}s` }}
                       >
-                        {IconComponent && (
-                          <IconComponent className="h-4 w-4 mr-2" />
-                        )}
                         {option?.label}
                         <XCircle
                           className="ml-2 h-4 w-4 cursor-pointer hover:text-destructive transition-colors"
@@ -315,8 +307,15 @@ export const MultiSelect = React.forwardRef<
                   return (
                     <CommandItem
                       key={option.value}
-                      onSelect={() => toggleOption(option.value)}
-                      className="cursor-pointer"
+                      onSelect={() => {
+                        if (option.disabled) return;
+                        toggleOption(option.value);
+                      }}
+                      disabled={option.disabled}
+                      className={cn(
+                        "cursor-pointer",
+                        option.disabled && "cursor-not-allowed opacity-50"
+                      )}
                     >
                       <div
                         className={cn(
@@ -328,9 +327,6 @@ export const MultiSelect = React.forwardRef<
                       >
                         <CheckIcon className="h-4 w-4" />
                       </div>
-                      {option.icon && (
-                        <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                      )}
                       <span>{option.label}</span>
                     </CommandItem>
                   );

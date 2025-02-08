@@ -1,7 +1,7 @@
 // app/api/places/route.ts
 import { NextResponse } from 'next/server'
-import { db } from "@/server/db";
-import { places, placeReviews } from "@/server/db/schema";
+import { db } from "src/server/db";
+import { places, placeReviews } from "src/server/db/schema";
 
 // Types
 interface Area {
@@ -105,6 +105,7 @@ function mapPriceLevel(priceLevel: string | undefined): number {
   }
 }
 
+
 async function searchPlaces(
   latitude: number,
   longitude: number,
@@ -112,9 +113,14 @@ async function searchPlaces(
   placeTypes: string[],
   pageToken?: string
 ): Promise<{ places: PlaceDetails[], nextPageToken?: string }> {
-  console.log(`🔍 Searching places - Lat: ${latitude}, Lng: ${longitude}, Radius: ${radius}m`)
-  console.log(`📍 Place types: ${placeTypes.join(', ')}`)
-  if (pageToken) console.log(`📄 Using page token: ${pageToken.substring(0, 20)}...`)
+  const logData = {
+    search: {
+      location: { latitude, longitude },
+      radius,
+      placeTypes,
+      pageToken: pageToken ? `${pageToken.substring(0, 20)}...` : null
+    }
+  };
 
   const url = 'https://places.googleapis.com/v1/places:searchNearby'
   
@@ -135,9 +141,6 @@ async function searchPlaces(
   }
 
   try {
-    console.log('📤 Request body:', JSON.stringify(body, null, 2))
-    console.time('🕒 Places API Request')
-
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -166,75 +169,72 @@ async function searchPlaces(
       body: JSON.stringify(body)
     })
 
-    console.timeEnd('🕒 Places API Request')
-    console.log('📥 Response status:', response.status, response.statusText)
-
     const result = (await response.json()) as GooglePlacesApiResponse
 
     if (!response.ok) {
-      console.error('❌ Error from Google Places API:', {
-        status: response.status,
-        statusText: response.statusText,
-        message: result.error?.message,
-        violations: result.error?.details?.[0]?.fieldViolations
-      })
+      Object.assign(logData, {
+        error: {
+          status: response.status,
+          statusText: response.statusText,
+          message: result.error?.message
+        }
+      });
       return { places: [] }
     }
 
-    const placesCount = result.places?.length || 0
-    console.log(`✅ Found ${placesCount} places${result.nextPageToken ? ' (more available)' : ''}`)
-
-    const places: PlaceDetails[] = (result.places || []).map(place => ({
-      name: place.displayName?.text || '',
-      address: place.formattedAddress || '',
-      coordinates: {
-        lat: place.location?.latitude || 0,
-        lng: place.location?.longitude || 0
-      },
-      rating: place.rating || 0,
-      total_ratings: place.userRatingCount || 0,
-      price_level: mapPriceLevel(place.priceLevel),
-      phone_number: place.internationalPhoneNumber || '',
-      website: place.websiteUri || '',
-      opening_hours: place.currentOpeningHours?.weekdayDescriptions || [],
-      place_id: place.id,
-      types: place.types || [],
-      cuisines: place.cuisines || [],
-      features: {
-        wheelchair_accessible: place.accessibility?.wheelchairAccessibleEntrance || false,
-        serves_vegetarian: place.servesVegetarianFood || false,
-        delivery: place.delivery || false,
-        dine_in: place.dineIn || false,
-        takeout: place.takeout || false
-      },
-      reviews: (place.reviews || []).map(review => ({
-        name: review.name || '',
-        text: review.text || '',
-        rating: review.rating || 0,
-        relativePublishTimeDescription: review.relativePublishTimeDescription || '',
-        publishTime: review.publishTime || '',
-        authorAttribution: review.authorAttribution ? {
-          displayName: review.authorAttribution.displayName || '',
-          photoUri: review.authorAttribution.photoUri,
-          uri: review.authorAttribution.uri
-        } : undefined
-      }))
-    }))
+    Object.assign(logData, {
+      results: {
+        count: result.places?.length || 0,
+        hasMorePages: !!result.nextPageToken
+      }
+    });
 
     return {
-      places,
+      places: (result.places || []).map(place => ({
+        name: place.displayName?.text || '',
+        address: place.formattedAddress || '',
+        coordinates: {
+          lat: place.location?.latitude || 0,
+          lng: place.location?.longitude || 0
+        },
+        rating: place.rating || 0,
+        total_ratings: place.userRatingCount || 0,
+        price_level: mapPriceLevel(place.priceLevel),
+        phone_number: place.internationalPhoneNumber || '',
+        website: place.websiteUri || '',
+        opening_hours: place.currentOpeningHours?.weekdayDescriptions || [],
+        place_id: place.id,
+        types: place.types || [],
+        cuisines: place.cuisines || [],
+        features: {
+          wheelchair_accessible: place.accessibility?.wheelchairAccessibleEntrance || false,
+          serves_vegetarian: place.servesVegetarianFood || false,
+          delivery: place.delivery || false,
+          dine_in: place.dineIn || false,
+          takeout: place.takeout || false
+        },
+        reviews: (place.reviews || []).map(review => ({
+          name: review.name || '',
+          text: review.text || '',
+          rating: review.rating || 0,
+          relativePublishTimeDescription: review.relativePublishTimeDescription || '',
+          publishTime: review.publishTime || '',
+          authorAttribution: review.authorAttribution ? {
+            displayName: review.authorAttribution.displayName || '',
+            photoUri: review.authorAttribution.photoUri,
+            uri: review.authorAttribution.uri
+          } : undefined
+        }))
+      })),
       nextPageToken: result.nextPageToken
     }
   } catch (error) {
-    console.error('❌ Error in nearby search:', error)
+    Object.assign(logData, { error: error });
     return { places: [] }
   }
 }
 
 async function processArea(area: Area, radius: number): Promise<PlaceDetails[]> {
-  console.log(`🎯 Processing area: ${area.name}`)
-  console.time(`⏱️ Total processing time for ${area.name}`)
-  
   const allResults: PlaceDetails[] = []
   const foodRelatedTypes = [
     'restaurant',
@@ -244,50 +244,54 @@ async function processArea(area: Area, radius: number): Promise<PlaceDetails[]> 
     'bar'
   ]
 
+  const areaLog = {
+    area: area.name,
+    results: [] as Array<{ type: string; count: number }>
+  };
+
   for (const placeType of foodRelatedTypes) {
-    console.log(`\n📍 Searching for ${placeType}s in ${area.name}...`)
     let pageToken: string | undefined
     let pageCount = 0
     let maxPages = 3
+    let typeResults = 0;
     
     do {
       pageCount++
-      console.log(`\n📄 Fetching page ${pageCount}${pageToken ? ' with token' : ''}...`)
-      
       const result = await searchPlaces(area.lat, area.lng, radius, [placeType], pageToken)
       allResults.push(...result.places)
+      typeResults += result.places.length;
       pageToken = result.nextPageToken
       
-      console.log(`📊 Current total places found in ${area.name}: ${allResults.length}`)
-      
       if (pageToken && pageCount < maxPages) {
-        console.log('⏳ Waiting before fetching next page...')
         await new Promise(resolve => setTimeout(resolve, 2000))
       } else {
-        pageToken = undefined // Stop if we've reached max pages
+        pageToken = undefined
       }
     } while (pageToken)
 
+    areaLog.results.push({
+      type: placeType,
+      count: typeResults
+    });
+
     if (foodRelatedTypes.indexOf(placeType) < foodRelatedTypes.length - 1) {
-      console.log('⏳ Rate limiting between place types...')
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
 
-  console.timeEnd(`⏱️ Total processing time for ${area.name}`)
-  console.log(`✨ Found total of ${allResults.length} places in ${area.name}`)
-  
   return allResults
 }
 
 async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[]) {
-  console.log(`💾 Saving ${placesToSave.length} places to database for event ${eventId}`);
-  
+  const dbLog = {
+    eventId,
+    totalPlaces: placesToSave.length,
+    savedPlaces: 0,
+    savedReviews: 0
+  };
+
   try {
     for (const place of placesToSave) {
-      console.log(`📍 Saving place: ${place.name} (Price Level: ${place.price_level})`);
-      
-      // Insert place
       const savedPlace = await db.insert(places).values({
         eventId: eventId,
         name: place.name,
@@ -309,8 +313,8 @@ async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[
       if (!savedPlace) {
         throw new Error(`Failed to save place: ${place.name}`);
       }
+      dbLog.savedPlaces++;
 
-      // Insert reviews
       if (place.reviews?.length > 0) {
         await db.insert(placeReviews).values(
           place.reviews.map(review => ({
@@ -325,21 +329,27 @@ async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[
             authorUrl: review.authorAttribution?.uri,
           }))
         );
+        dbLog.savedReviews += place.reviews.length;
       }
-      console.log(`✅ Successfully saved place: ${place.name}`);
     }
-    console.log('✨ Finished saving all places to database');
+    return dbLog;
   } catch (error) {
-    console.error('❌ Error saving to database:', error);
-    throw error;
+    return { ...dbLog, error };
   }
 }
 
 export async function GET(request: Request) {
-  console.log('\n🚀 Starting places API request...')
-  
+  const startTime = Date.now();
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    eventId: null as string | null,
+    request: {} as any,
+    response: {} as any,
+    duration: 0
+  };
+
   if (!API_KEY) {
-    console.error('❌ API key not configured')
+    console.table([{ ...logEntry, error: 'API key not configured' }]);
     return NextResponse.json(
       { error: 'API key not configured' },
       { status: 500 }
@@ -351,20 +361,21 @@ export async function GET(request: Request) {
   const areaParam = searchParams.get('area')
   const radius = parseInt(searchParams.get('radius') || '2000')
   
+  logEntry.eventId = eventId;
+  logEntry.request = {
+    eventId,
+    area: areaParam || 'Default (Downtown Pittsburgh)',
+    radius: `${radius}m`
+  };
+
   if (!eventId) {
+    console.table([{ ...logEntry, error: 'event_id is required' }]);
     return NextResponse.json(
       { error: 'event_id is required' },
       { status: 400 }
     )
   }
 
-  console.log('📝 Request parameters:', {
-    eventId,
-    area: areaParam || 'Default (Downtown Pittsburgh)',
-    radius: `${radius}m`
-  })
-
-  // Default to Downtown Pittsburgh if no area specified
   const areas: Area[] = areaParam ? 
     JSON.parse(areaParam) : 
     [{
@@ -374,14 +385,11 @@ export async function GET(request: Request) {
     }]
 
   try {
-    console.time('⏱️ Total API request time')
     const allPlaces: PlaceDetails[] = []
     const seenPlaceIds = new Set<string>()
 
     for (const area of areas) {
       const results = await processArea(area, radius)
-      
-      // Add only unique places
       for (const place of results) {
         if (place && !seenPlaceIds.has(place.place_id)) {
           allPlaces.push(place)
@@ -390,11 +398,15 @@ export async function GET(request: Request) {
       }
     }
 
-    // Save to database
-    await savePlacesToDatabase(eventId, allPlaces);
+    const dbResult = await savePlacesToDatabase(eventId, allPlaces);
+    
+    logEntry.response = {
+      uniquePlaces: allPlaces.length,
+      savedToDb: dbResult
+    };
+    logEntry.duration = Date.now() - startTime;
 
-    console.timeEnd('⏱️ Total API request time')
-    console.log(`✅ Request completed successfully. Found ${allPlaces.length} unique places.`)
+    console.table([logEntry]);
 
     return NextResponse.json({
       success: true,
@@ -403,7 +415,10 @@ export async function GET(request: Request) {
     })
 
   } catch (error) {
-    console.error('❌ Error processing request:', error)
+    logEntry.response = { error };
+    logEntry.duration = Date.now() - startTime;
+    console.table([logEntry]);
+    
     return NextResponse.json(
       { error: 'Failed to fetch places' },
       { status: 500 }
