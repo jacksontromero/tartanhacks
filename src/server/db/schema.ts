@@ -134,7 +134,8 @@ export const events = createTable("event", {
 export const places = createTable("place", {
   id: varchar("id", { length: 255 })
     .notNull()
-    .primaryKey(),
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   eventId: varchar("event_id", { length: 255 })
     .notNull()
     .references(() => events.id),
@@ -174,7 +175,7 @@ export const placeReviews = createTable("place_review", {
     .references(() => places.id),
   name: varchar("name", { length: 255 }),
   text: text("text"),
-  rating: decimal("rating", { precision: 3, scale: 1 }),
+  rating: varchar("rating", { length: 10 }),
   publishTime: timestamp("publish_time", {
     mode: "date",
     withTimezone: true,
@@ -183,6 +184,40 @@ export const placeReviews = createTable("place_review", {
   authorName: varchar("author_name", { length: 255 }),
   authorPhotoUrl: varchar("author_photo_url", { length: 255 }),
   authorUrl: varchar("author_url", { length: 255 }),
+});
+
+export const apiLogs = createTable("api_log", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  timestamp: timestamp("timestamp", {
+    mode: "date",
+    withTimezone: true,
+  })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  eventId: varchar("event_id", { length: 255 })
+    .references(() => events.id),
+  request: json("request").$type<{
+    area?: string;
+    radius?: string;
+    [key: string]: unknown;
+  }>(),
+  response: json("response").$type<{
+    uniquePlaces?: number;
+    savedToDb?: {
+      totalPlaces: number;
+      savedPlaces: number;
+      savedReviews: number;
+      error?: unknown;
+    };
+    error?: unknown;
+    [key: string]: unknown;
+  }>(),
+  duration: integer("duration").notNull(),
+  error: text("error"),
+  status: integer("status").notNull().default(200),
 });
 
 export const placesRelations = relations(places, ({ one, many }) => ({
@@ -206,4 +241,12 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [users.id],
   }),
   places: many(places),
+  apiLogs: many(apiLogs),
+}));
+
+export const apiLogsRelations = relations(apiLogs, ({ one }) => ({
+  event: one(events, {
+    fields: [apiLogs.eventId],
+    references: [events.id],
+  }),
 }));
