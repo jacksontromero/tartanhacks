@@ -2,54 +2,7 @@
 import { NextResponse } from 'next/server'
 import { db } from "src/server/db";
 import { places, placeReviews } from "src/server/db/schema";
-
-// Types
-interface Area {
-  name: string
-  lat: number
-  lng: number
-}
-
-interface PlaceFeatures {
-  wheelchair_accessible: boolean
-  serves_vegetarian: boolean
-  delivery: boolean
-  dine_in: boolean
-  takeout: boolean
-}
-
-interface PlaceReview {
-  name: string
-  text: string
-  rating: number
-  relativePublishTimeDescription: string
-  publishTime: string
-  authorAttribution?: {
-    displayName: string
-    photoUri?: string
-    uri?: string
-  }
-}
-
-interface PlaceDetails {
-  name: string
-  address: string
-  coordinates: {
-    lat: number
-    lng: number
-  }
-  rating: number
-  total_ratings: number
-  price_level: string
-  phone_number: string
-  website: string
-  opening_hours: string[]
-  place_id: string
-  types: string[]
-  cuisines: string[]
-  features: PlaceFeatures
-  reviews: PlaceReview[]
-}
+import { Area, PlaceFeatures, PlaceReview, PlaceDetails } from "~/constants/types";
 
 interface GooglePlacesApiResponse {
   places?: {
