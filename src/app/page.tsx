@@ -38,7 +38,7 @@ export default async function HomePage() {
           {session && <HostEventButton />}
         </div>
         {session && <YourEvents events={events} />}
-        <TestInput />
+        {/* <TestInput /> */}
       </div>
     </main>
   );
