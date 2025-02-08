@@ -33,7 +33,7 @@ async function searchYelp(name: string, latitude: number, longitude: number) {
   }
 }
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   console.log('API request started');
   const startTime = Date.now()
   
@@ -50,13 +50,11 @@ export async function GET(request: Request) {
       console.warn('Yelp API key not configured');
     }
 
-    // Parse URL parameters
-    const { searchParams } = new URL(request.url)
-    const eventId = searchParams.get('event_id')
-    const latParam = searchParams.get('latitude')
-    const lngParam = searchParams.get('longitude')
+    // Parse request body
+    const body = await request.json();
+    const { event_id, latitude, longitude } = body;
     
-    if (!eventId) {
+    if (!event_id) {
       return NextResponse.json(
         { error: 'event_id is required' },
         { status: 400 }
@@ -64,8 +62,8 @@ export async function GET(request: Request) {
     }
 
     // Use provided coordinates or default to Pittsburgh downtown
-    const baseLatitude = latParam ? parseFloat(latParam) : 40.4406
-    const baseLongitude = lngParam ? parseFloat(lngParam) : -79.9959
+    const baseLatitude = latitude ?? 40.4406
+    const baseLongitude = longitude ?? -79.9959
 
     // Define offsets to search in different nearby areas (roughly 500m in each direction)
     const offsets = [
@@ -122,9 +120,9 @@ export async function GET(request: Request) {
         if (!response.ok) {
           // Log error and continue with next radius
           await db.insert(apiRequestLogs).values({
-            event_id: eventId || null,
+            event_id: event_id || null,
             request: {
-              eventId,
+              event_id,
               url: request.url,
               radius,
               latitude,
@@ -172,9 +170,9 @@ export async function GET(request: Request) {
     
     // Log final results to database
     await db.insert(apiRequestLogs).values({
-      event_id: eventId || null,
+      event_id: event_id || null,
       request: {
-        eventId,
+        event_id,
         url: request.url,
         baseLatitude,
         baseLongitude,
@@ -189,14 +187,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      event_id: eventId,
+      event_id: event_id,
       places
     })
 
   } catch (error) {
     // Log error to database
     await db.insert(apiRequestLogs).values({
-      event_id: eventId || null,
+      event_id: event_id || null,
       request: {
         url: request.url
       },
