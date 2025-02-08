@@ -13,6 +13,8 @@ export default function CopyInviteButton({ eventId }: { eventId: string }) {
         title: "Copied!",
         description: "Invite link copied to clipboard",
       });
+    }).catch((err) => {
+      console.error("Failed to copy invite link", err);
     });
   };
 
