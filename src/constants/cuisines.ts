@@ -1,4 +1,6 @@
-export const CUISINE_MAPPINGS: { [key: string]: string } = {
+type CuisineType = Record<string, string>
+
+export const CUISINE_MAPPINGS: CuisineType = {
   "afghani_restaurant": "Afghani",
   "african_restaurant": "African",
   "american_restaurant": "American",
@@ -40,7 +42,7 @@ export const CUISINE_MAPPINGS: { [key: string]: string } = {
   "tea_house": "Tea House"
 };
 
-export const INVERSE_CUISINE_MAPPINGS: { [key: string]: string } = Object.fromEntries(
+export const INVERSE_CUISINE_MAPPINGS: CuisineType = Object.fromEntries(
   Object.entries(CUISINE_MAPPINGS).map(([key, value]) => [value, key])
 );
 
@@ -65,3 +67,5 @@ export const PRICE_RANGES = [
   { value: "$$$", label: "$$$ ($31-$60)" },
   { value: "$$$$", label: "$$$$ (Over $60)" }
 ] as const;
+
+type SelectedCuisinesType = Record<string, boolean>
