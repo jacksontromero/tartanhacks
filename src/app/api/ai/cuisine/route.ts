@@ -44,7 +44,8 @@ export async function POST(req: Request) {
       },
     );
 
-    const result = await model.generateContent(["Given this data for a restaurant description and reviews, determine the cuisine that best describes the restaurant: " + input]);
+    const result = await model.generateContent([
+      "Given this data for a restaurant description and reviews, determine the cuisines that best describe the restaurant. Output an array of the one or two most relevant cuisines: " + input]);
     const response = result.response;
 
     return NextResponse.json({ response: response.text() });
