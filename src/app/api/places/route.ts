@@ -1,427 +1,210 @@
 // app/api/places/route.ts
 import { NextResponse } from 'next/server'
-import { db } from "src/server/db";
-import { places, placeReviews } from "src/server/db/schema";
-
-// Types
-interface Area {
-  name: string
-  lat: number
-  lng: number
-}
-
-interface PlaceFeatures {
-  wheelchair_accessible: boolean
-  serves_vegetarian: boolean
-  delivery: boolean
-  dine_in: boolean
-  takeout: boolean
-}
-
-interface PlaceReview {
-  name: string
-  text: string
-  rating: number
-  relativePublishTimeDescription: string
-  publishTime: string
-  authorAttribution?: {
-    displayName: string
-    photoUri?: string
-    uri?: string
-  }
-}
-
-interface PlaceDetails {
-  name: string
-  address: string
-  coordinates: {
-    lat: number
-    lng: number
-  }
-  rating: number
-  total_ratings: number
-  price_level: string
-  phone_number: string
-  website: string
-  opening_hours: string[]
-  place_id: string
-  types: string[]
-  cuisines: string[]
-  features: PlaceFeatures
-  reviews: PlaceReview[]
-}
-
-interface GooglePlacesApiResponse {
-  places?: {
-    id: string
-    displayName?: { text: string }
-    formattedAddress?: string
-    location?: { latitude: number; longitude: number }
-    rating?: number
-    userRatingCount?: number
-    priceLevel?: string
-    internationalPhoneNumber?: string
-    websiteUri?: string
-    currentOpeningHours?: { weekdayDescriptions: string[] }
-    types?: string[]
-    cuisines?: string[]
-    accessibility?: { wheelchairAccessibleEntrance: boolean }
-    servesVegetarianFood?: boolean
-    delivery?: boolean
-    dineIn?: boolean
-    takeout?: boolean
-    reviews?: Array<{
-      name?: string
-      text?: string
-      rating?: number
-      relativePublishTimeDescription?: string
-      publishTime?: string
-      authorAttribution?: {
-        displayName?: string
-        photoUri?: string
-        uri?: string
-      }
-    }>
-  }[]
-  nextPageToken?: string
-}
+import { db } from "src/server/db"
+import { apiLogs as apiRequestLogs } from 'src/server/db/schema'
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
 
-function mapPriceLevel(priceLevel: string | undefined): number {
-  switch (priceLevel) {
-    case 'PRICE_LEVEL_FREE':
-      return 0;
-    case 'PRICE_LEVEL_INEXPENSIVE':
-      return 1;
-    case 'PRICE_LEVEL_MODERATE':
-      return 2;
-    case 'PRICE_LEVEL_EXPENSIVE':
-      return 3;
-    case 'PRICE_LEVEL_VERY_EXPENSIVE':
-      return 4;
-    default:
-      return 0;
-  }
-}
-
-
-async function searchPlaces(
-  latitude: number,
-  longitude: number,
-  radius: number,
-  placeTypes: string[],
-  pageToken?: string
-): Promise<{ places: PlaceDetails[], nextPageToken?: string }> {
-  const logData = {
-    search: {
-      location: { latitude, longitude },
-      radius,
-      placeTypes,
-      pageToken: pageToken ? `${pageToken.substring(0, 20)}...` : null
-    }
-  };
-
-  const url = 'https://places.googleapis.com/v1/places:searchNearby'
-  
-  const body = {
-    locationRestriction: {
-      circle: {
-        center: {
-          latitude: latitude,
-          longitude: longitude
-        },
-        radius: radius
-      }
-    },
-    includedTypes: placeTypes,
-    maxResultCount: 20,
-    rankPreference: "DISTANCE",
-    pageToken: pageToken
-  }
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': API_KEY!,
-        'X-Goog-FieldMask': [
-          'places.id',
-          'places.displayName',
-          'places.formattedAddress',
-          'places.location',
-          'places.rating',
-          'places.userRatingCount',
-          'places.types',
-          'places.priceLevel',
-          'places.internationalPhoneNumber',
-          'places.websiteUri',
-          'places.currentOpeningHours',
-          'places.delivery',
-          'places.dineIn',
-          'places.takeout',
-          'places.servesVegetarianFood',
-          'places.cuisines',
-          'places.reviews',
-        ].join(',')
-      },
-      body: JSON.stringify(body)
-    })
-
-    const result = (await response.json()) as GooglePlacesApiResponse
-
-    if (!response.ok) {
-      Object.assign(logData, {
-        error: {
-          status: response.status,
-          statusText: response.statusText,
-          message: result.error?.message
-        }
-      });
-      return { places: [] }
-    }
-
-    Object.assign(logData, {
-      results: {
-        count: result.places?.length || 0,
-        hasMorePages: !!result.nextPageToken
-      }
-    });
-
-    return {
-      places: (result.places || []).map(place => ({
-        name: place.displayName?.text || '',
-        address: place.formattedAddress || '',
-        coordinates: {
-          lat: place.location?.latitude || 0,
-          lng: place.location?.longitude || 0
-        },
-        rating: place.rating || 0,
-        total_ratings: place.userRatingCount || 0,
-        price_level: mapPriceLevel(place.priceLevel),
-        phone_number: place.internationalPhoneNumber || '',
-        website: place.websiteUri || '',
-        opening_hours: place.currentOpeningHours?.weekdayDescriptions || [],
-        place_id: place.id,
-        types: place.types || [],
-        cuisines: place.cuisines || [],
-        features: {
-          wheelchair_accessible: place.accessibility?.wheelchairAccessibleEntrance || false,
-          serves_vegetarian: place.servesVegetarianFood || false,
-          delivery: place.delivery || false,
-          dine_in: place.dineIn || false,
-          takeout: place.takeout || false
-        },
-        reviews: (place.reviews || []).map(review => ({
-          name: review.name || '',
-          text: review.text || '',
-          rating: review.rating || 0,
-          relativePublishTimeDescription: review.relativePublishTimeDescription || '',
-          publishTime: review.publishTime || '',
-          authorAttribution: review.authorAttribution ? {
-            displayName: review.authorAttribution.displayName || '',
-            photoUri: review.authorAttribution.photoUri,
-            uri: review.authorAttribution.uri
-          } : undefined
-        }))
-      })),
-      nextPageToken: result.nextPageToken
-    }
-  } catch (error) {
-    Object.assign(logData, { error: error });
-    return { places: [] }
-  }
-}
-
-async function processArea(area: Area, radius: number): Promise<PlaceDetails[]> {
-  const allResults: PlaceDetails[] = []
-  const foodRelatedTypes = [
-    'restaurant',
-    'cafe',
-    'bakery',
-    'meal_takeaway',
-    'bar'
-  ]
-
-  const areaLog = {
-    area: area.name,
-    results: [] as Array<{ type: string; count: number }>
-  };
-
-  for (const placeType of foodRelatedTypes) {
-    let pageToken: string | undefined
-    let pageCount = 0
-    let maxPages = 3
-    let typeResults = 0;
-    
-    do {
-      pageCount++
-      const result = await searchPlaces(area.lat, area.lng, radius, [placeType], pageToken)
-      allResults.push(...result.places)
-      typeResults += result.places.length;
-      pageToken = result.nextPageToken
-      
-      if (pageToken && pageCount < maxPages) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-      } else {
-        pageToken = undefined
-      }
-    } while (pageToken)
-
-    areaLog.results.push({
-      type: placeType,
-      count: typeResults
-    });
-
-    if (foodRelatedTypes.indexOf(placeType) < foodRelatedTypes.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-  }
-
-  return allResults
-}
-
-async function savePlacesToDatabase(eventId: string, placesToSave: PlaceDetails[]) {
-  const dbLog = {
-    eventId,
-    totalPlaces: placesToSave.length,
-    savedPlaces: 0,
-    savedReviews: 0
-  };
-
-  try {
-    for (const place of placesToSave) {
-      const savedPlace = await db.insert(places).values({
-        eventId: eventId,
-        name: place.name,
-        address: place.address,
-        latitude: place.coordinates.lat,
-        longitude: place.coordinates.lng,
-        rating: place.rating,
-        totalRatings: place.total_ratings,
-        priceLevel: place.price_level,
-        phoneNumber: place.phone_number,
-        website: place.website,
-        placeId: place.place_id,
-        types: place.types,
-        cuisineTypes: place.cuisines,
-        features: place.features,
-        openingHours: place.opening_hours,
-      }).returning().then(results => results[0]);
-
-      if (!savedPlace) {
-        throw new Error(`Failed to save place: ${place.name}`);
-      }
-      dbLog.savedPlaces++;
-
-      if (place.reviews?.length > 0) {
-        await db.insert(placeReviews).values(
-          place.reviews.map(review => ({
-            placeId: savedPlace.id,
-            name: review.name,
-            text: review.text,
-            rating: review.rating.toString(),
-            publishTime: review.publishTime ? new Date(review.publishTime) : null,
-            relativePublishTime: review.relativePublishTimeDescription,
-            authorName: review.authorAttribution?.displayName,
-            authorPhotoUrl: review.authorAttribution?.photoUri,
-            authorUrl: review.authorAttribution?.uri,
-          }))
-        );
-        dbLog.savedReviews += place.reviews.length;
-      }
-    }
-    return dbLog;
-  } catch (error) {
-    return { ...dbLog, error };
-  }
-}
-
 export async function GET(request: Request) {
-  const startTime = Date.now();
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    eventId: null as string | null,
-    request: {} as any,
-    response: {} as any,
-    duration: 0
-  };
-
-  if (!API_KEY) {
-    console.table([{ ...logEntry, error: 'API key not configured' }]);
-    return NextResponse.json(
-      { error: 'API key not configured' },
-      { status: 500 }
-    )
-  }
-
-  const { searchParams } = new URL(request.url)
-  const eventId = searchParams.get('event_id')
-  const areaParam = searchParams.get('area')
-  const radius = parseInt(searchParams.get('radius') || '2000')
+  const startTime = Date.now()
   
-  logEntry.eventId = eventId;
-  logEntry.request = {
-    eventId,
-    area: areaParam || 'Default (Downtown Pittsburgh)',
-    radius: `${radius}m`
-  };
-
-  if (!eventId) {
-    console.table([{ ...logEntry, error: 'event_id is required' }]);
-    return NextResponse.json(
-      { error: 'event_id is required' },
-      { status: 400 }
-    )
-  }
-
-  const areas: Area[] = areaParam ? 
-    JSON.parse(areaParam) : 
-    [{
-      name: "Downtown",
-      lat: 40.4406,
-      lng: -79.9959
-    }]
-
   try {
-    const allPlaces: PlaceDetails[] = []
-    const seenPlaceIds = new Set<string>()
+    // Validate API key
+    if (!API_KEY) {
+      console.error('Google Places API key not configured')
+      return NextResponse.json(
+        { error: 'API key not configured' },
+        { status: 500 }
+      )
+    }
 
-    for (const area of areas) {
-      const results = await processArea(area, radius)
-      for (const place of results) {
-        if (place && !seenPlaceIds.has(place.place_id)) {
-          allPlaces.push(place)
-          seenPlaceIds.add(place.place_id)
+    // Parse URL parameters
+    const { searchParams } = new URL(request.url)
+    const eventId = searchParams.get('event_id')
+    const latParam = searchParams.get('latitude')
+    const lngParam = searchParams.get('longitude')
+    
+    if (!eventId) {
+      return NextResponse.json(
+        { error: 'event_id is required' },
+        { status: 400 }
+      )
+    }
+
+    // Use provided coordinates or default to Pittsburgh downtown
+    const baseLatitude = latParam ? parseFloat(latParam) : 40.4406
+    const baseLongitude = lngParam ? parseFloat(lngParam) : -79.9959
+
+    // Define offsets to search in different nearby areas (roughly 500m in each direction)
+    const offsets = [
+      {lat: 0, lng: 0},
+      {lat: 0.004, lng: 0}, // North
+      {lat: -0.004, lng: 0}, // South
+      {lat: 0, lng: 0.005}, // East
+      {lat: 0, lng: -0.005}, // West
+    ]
+
+    // Make multiple API calls with different radii and center points to get more coverage
+    const radii = [500, 1000] // Reduced radii since we're searching multiple points
+    const allPlaces = new Map() // Use Map to deduplicate places by ID
+
+    for (const offset of offsets) {
+      const latitude = baseLatitude + offset.lat
+      const longitude = baseLongitude + offset.lng
+
+      for (const radius of radii) {
+        const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': API_KEY,
+            'X-Goog-FieldMask': [
+              'places.id',
+              'places.displayName', 
+              'places.formattedAddress',
+              'places.location',
+              'places.rating',
+              'places.userRatingCount',
+              'places.priceLevel',
+              'places.reviews',
+            ].join(',')
+          },
+          body: JSON.stringify({
+            locationRestriction: {
+              circle: {
+                center: {
+                  latitude,
+                  longitude
+                },
+                radius
+              }
+            },
+            maxResultCount: 20,
+            rankPreference: "DISTANCE",
+            includedTypes: ['restaurant', 'cafe', 'bakery', 'meal_takeaway', 'bar']
+          })
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          // Log error and continue with next radius
+          await db.insert(apiRequestLogs).values({
+            eventId,
+            request: {
+              eventId,
+              url: request.url,
+              radius,
+              latitude,
+              longitude
+            },
+            response: data,
+            error: data.error?.message,
+            duration: Date.now() - startTime,
+            status: response.status
+          })
+          continue
+        }
+
+        // Add unique places to map
+        if (data.places) {
+          for (const place of data.places) {
+            if (!allPlaces.has(place.id)) {
+              // Get additional details for each place
+              const detailsResponse = await fetch(`https://places.googleapis.com/v1/places/${place.id}`, {
+                headers: {
+                  'X-Goog-Api-Key': API_KEY,
+                  'X-Goog-FieldMask': [
+                    'id',
+                    'displayName',
+                    'formattedAddress',
+                    'location',
+                    'rating',
+                    'userRatingCount',
+                    'priceLevel',
+                    'reviews',
+                    'types',
+                    'websiteUri',
+                    'formattedPhoneNumber',
+                    'currentOpeningHours',
+                    'delivery',
+                    'dineIn',
+                    'takeout',
+                    'wheelchairAccessibleEntrance',
+                    'servesVegetarianFood'
+                  ].join(',')
+                }
+              })
+
+              if (detailsResponse.ok) {
+                const detailsData = await detailsResponse.json()
+                allPlaces.set(place.id, {
+                  ...place,
+                  ...detailsData,
+                  features: {
+                    wheelchair_accessible: detailsData.wheelchairAccessibleEntrance,
+                    serves_vegetarian: detailsData.servesVegetarianFood,
+                    delivery: detailsData.delivery,
+                    dine_in: detailsData.dineIn,
+                    takeout: detailsData.takeout
+                  }
+                })
+              } else {
+                allPlaces.set(place.id, place)
+              }
+            }
+          }
         }
       }
     }
 
-    const dbResult = await savePlacesToDatabase(eventId, allPlaces);
+    // Convert map to array
+    const places = Array.from(allPlaces.values())
     
-    logEntry.response = {
-      uniquePlaces: allPlaces.length,
-      savedToDb: dbResult
-    };
-    logEntry.duration = Date.now() - startTime;
-
-    console.table([logEntry]);
+    // Log final results to database
+    await db.insert(apiRequestLogs).values({
+      eventId,
+      request: {
+        eventId,
+        url: request.url,
+        baseLatitude,
+        baseLongitude,
+        offsets,
+        radii
+      },
+      response: { places },
+      error: null,
+      duration: Date.now() - startTime,
+      status: 200
+    })
 
     return NextResponse.json({
       success: true,
-      total: allPlaces.length,
-      places: allPlaces
+      event_id: eventId,
+      places
     })
 
   } catch (error) {
-    logEntry.response = { error };
-    logEntry.duration = Date.now() - startTime;
-    console.table([logEntry]);
+    // Log error to database
+    await db.insert(apiRequestLogs).values({
+      eventId,
+      request: {
+        url: request.url
+      },
+      response: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      duration: Date.now() - startTime,
+      status: 500
+    })
     
     return NextResponse.json(
-      { error: 'Failed to fetch places' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
+}
+
+// Add HEAD method to fix 405 error
+export async function HEAD() {
+  return new Response(null, { status: 200 })
 }
