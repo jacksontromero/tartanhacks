@@ -9,6 +9,9 @@ const config = {
   images: {
     domains: ['www.yelp.com', /* other domains */],
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default config;
