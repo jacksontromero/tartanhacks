@@ -71,7 +71,7 @@ async function searchPlaces(
     },
     includedTypes: placeTypes,
     maxResultCount: 30,
-    rankPreference: "RATING",
+    rankPreference: "POPULARITY",
     pageToken: pageToken
   }
 
