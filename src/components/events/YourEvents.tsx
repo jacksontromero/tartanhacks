@@ -16,7 +16,7 @@ import { cn } from "~/lib/utils";
 import { EventWithResponses } from "~/app/page";
 
 export default function YourEvents({ events }: { events: EventWithResponses[] }) {
-  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [showPastEvents, setShowPastEvents] = useState(true);
 
   const currentDate = new Date();
   const filteredEvents = events.filter(event => {
