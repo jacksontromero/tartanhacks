@@ -112,6 +112,21 @@ export default function InviteForm({
       }
 
       router.push(`/event/${eventId}/thanks`);
+
+      const notifyRes = await fetch(`/api/notify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ eventId }),
+      });
+      
+      if (!notifyRes.ok) {
+        throw new Error('Failed to submit RSVP');
+      } else {
+        console.log("Success in emailing RSVP")
+      }
+
     } catch (error) {
       console.error("Failed to submit response:", error);
       form.setError("root", {
