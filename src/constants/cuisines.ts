@@ -1,5 +1,13 @@
 import { PriceLevel, Area } from '~/constants/types';
 
+export enum PriceLevel {
+  PRICE_LEVEL_UNSPECIFIED = "PRICE_LEVEL_UNSPECIFIED",
+  PRICE_LEVEL_INEXPENSIVE = "PRICE_LEVEL_INEXPENSIVE",
+  PRICE_LEVEL_MODERATE = "PRICE_LEVEL_MODERATE",
+  PRICE_LEVEL_EXPENSIVE = "PRICE_LEVEL_EXPENSIVE",
+  PRICE_LEVEL_VERY_EXPENSIVE = "PRICE_LEVEL_VERY_EXPENSIVE"
+}
+
 export const CUISINE_MAPPINGS: { [key: string]: string } = {
   "Afghani": "afghani_restaurant",
   "African": "african_restaurant",

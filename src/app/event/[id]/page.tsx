@@ -26,11 +26,12 @@ export default async function EventPage({
 
   const isHost = session?.user?.id === event.hostId;
   let rankings = null;
+  let data = null;
 
   if (isHost) {
     try {
-      const rankingData = await getRankingsForEvent(id);
-      rankings = rankingData.rankings;
+      data = await getRankingsForEvent(id);
+      rankings = data.rankings;
     } catch (error) {
       // If there are no responses yet, getRankingsForEvent will throw
       console.log("No rankings available yet");
@@ -41,11 +42,13 @@ export default async function EventPage({
   const priceRanges = JSON.parse(event.priceRanges) as string[];
   const cuisineTypes = JSON.parse(event.cuisineTypes) as string[];
 
+  if (!data) return <div>Loading...</div>;
+
   return (
     <main className="bg-background min-h-screen">
       <div className="w-full p-8">
         <div className="flex gap-12 w-full justify-around">
-          {/* Event Details Card - Full width if not host, left side if host */}
+          {/* Event Details Card */}
           <div className={`rounded-lg h-fit bg-white p-8 shadow-lg ${isHost ? 'w-[300px] flex-shrink-0' : 'w-full max-w-2xl mx-auto'}`}>
             <h1 className="text-3xl font-bold text-primary">{event.title}</h1>
 
@@ -101,6 +104,17 @@ export default async function EventPage({
             <div className="mt-6 flex justify-center">
               <CopyInviteButton eventId={event.id} />
             </div>
+            {/* Metadata Card */}{
+              isHost && rankings && rankings.length > 0 && 
+            <div>
+              <h2 className="text-xl font-semibold text-primary pt-8">Overview</h2>
+                    <p className="mt-2">Number of Responses: <span className="font-medium">{data.totalParticipants}</span></p>
+                    <h4 className="mt-4 font-semibold">Overall Preferences</h4>
+                    <p>Preferred Cuisines: <span className="font-medium">{data.overallPreferences.preferred_cuisines.join(', ')}</span></p>
+                    <p>Anti-Preferred Cuisines: <span className="font-medium">{data.overallPreferences.antiPreferred_cuisines.join(', ')}</span></p>
+                    <p>Dietary Restrictions: <span className="font-medium">{data.overallPreferences.dietaryRestrictions.join(', ')}</span></p>
+                  </div>
+            }
           </div>
 
           {/* Rankings Section - Only show for host */}
@@ -110,7 +124,9 @@ export default async function EventPage({
                 Restaurant Rankings
               </h2>
               {rankings && rankings.length > 0 ? (
-                <RankedRestaurants rankings={rankings} />
+                <>
+                  <RankedRestaurants rankings={rankings} />
+                </>
               ) : (
                 <div className="rounded-lg bg-white p-8 shadow-lg text-center">
                   <p className="text-lg text-muted-foreground">
