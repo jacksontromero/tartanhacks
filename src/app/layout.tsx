@@ -16,7 +16,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
-      <body className="min-h-screen bg-background font-sans antialiased">
+      <body className="h-screen bg-background font-sans antialiased">
         <Navbar />
         <SessionProvider>{children}</SessionProvider>
       </body>
