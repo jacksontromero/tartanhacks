@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { PlaceDetails } from "~/constants/types";
 import Image from "next/image";
-import { Star, Check, Loader2 } from "lucide-react";
+import { Star, Check, Loader2, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -30,6 +30,7 @@ export default function RestaurantCard({
   isFinal = false
 }: RestaurantCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [unpickDialogOpen, setUnpickDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const priceLevel = "💰".repeat(restaurant.price_level || 0);
@@ -56,6 +57,26 @@ export default function RestaurantCard({
       router.refresh();
     } catch (error) {
       console.error('Error selecting restaurant:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUnpickRestaurant = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/events/${eventId}/unpick-restaurant`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to unpick restaurant');
+      }
+
+      setUnpickDialogOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error('Error unpicking restaurant:', error);
     } finally {
       setIsLoading(false);
     }
@@ -106,10 +127,20 @@ export default function RestaurantCard({
                   </Button>
                 )}
                 {isFinal && (
-                  <span className="flex items-center gap-1 text-green-600">
-                    <Check className="h-5 w-5" />
-                    Final Pick
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-green-600">
+                      <Check className="h-5 w-5" />
+                      Final Pick
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setUnpickDialogOpen(true)}
+                      className="ml-2 text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -162,6 +193,37 @@ export default function RestaurantCard({
                 </>
               ) : (
                 'Confirm Selection'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unpickDialogOpen} onOpenChange={setUnpickDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Final Restaurant Selection</DialogTitle>
+            <DialogDescription className="text-destructive">
+              Are you sure you want to remove {restaurant.name} as the final restaurant?
+              This is a destructive action and guests will not be notified until you select a new restaurant.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnpickDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleUnpickRestaurant}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Selection'
               )}
             </Button>
           </DialogFooter>
