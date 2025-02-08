@@ -1,5 +1,73 @@
 import { CUISINE_MAPPINGS, PRICE_MAPPINGS } from "~/constants/cuisines";
 import { PlaceDetails, PriceLevel } from "~/constants/types";
+import { db } from "~/server/db";
+import { eq, desc } from "drizzle-orm";
+import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
+
+export async function getRankingsForEvent(event_id: string) {
+  // Get event responses
+  const responses = await db.query.eventResponses.findMany({
+    where: eq(eventResponses.eventId, event_id),
+  });
+
+  if (responses.length === 0) {
+    throw new Error('No responses found for this event');
+  }
+
+  // Get latest API log with places data
+  const latestApiLog = await db.query.apiLogs.findFirst({
+    where: eq(apiLogs.event_id, event_id),
+    orderBy: [desc(apiLogs.timestamp)],
+  });
+
+  if (!latestApiLog?.response?.places) {
+    throw new Error('No places data found for event');
+  }
+
+  // Aggregate preferences
+  const preferences = aggregatePreferences(responses);
+  
+  // Rank restaurants
+  const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
+    const result = await rankRestaurantsForEvent(
+      event_id,
+      [restaurant],
+      preferences,
+      new Request('http://localhost:3000')
+    );
+    return result[0];
+  }));
+
+  // Store ranked results
+  if (rankings.length > 0) {
+    try {
+      await db.insert(rankedPlaces).values(
+        rankings.map(result => ({
+          event_id,
+          place_details: result.restaraunt,
+          score: result.score
+        }))
+      );
+    } catch (error) {
+      console.error('Error storing rankings:', error);
+    }
+  }
+
+  return {
+    success: true,
+    event_id,
+    preferences: {
+      preferred_cuisines: Object.keys(preferences.preferredCuisines),
+      antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
+    },
+    rankings: rankings.sort((a, b) => b.score - a.score),
+    meta: {
+      total_responses: responses.length,
+      total_restaurants: latestApiLog.response.places.length,
+      ranked_restaurants: rankings.length
+    }
+  };
+} 
 
 function calculateAggregateRating(
   googleRating?: number,
@@ -172,4 +240,5 @@ export async function rankRestaurantsForEvent(
     };
   }));
   return results.sort((a, b) => b.score - a.score);
-} 
+}
+
