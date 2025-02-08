@@ -16,10 +16,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${GeistSans.variable}`}>
-      <body className="h-screen bg-background font-sans antialiased">
+    <html lang="en" className={`${GeistSans.variable} h-full`}>
+      <body className="min-h-full bg-background font-sans antialiased">
         <Navbar />
-        <SessionProvider>{children}</SessionProvider>
+        <div className="flex-1">
+          <SessionProvider>{children}</SessionProvider>
+        </div>
         <Toaster />
       </body>
     </html>

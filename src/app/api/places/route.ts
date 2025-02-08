@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server'
 import { db } from "~/server/db"
 import { apiLogs as apiRequestLogs } from '~/server/db/schema'
+import { classifyCuisine } from "~/lib/ai"
 
 const API_KEY = process.env.GOOGLE_PLACES_API_KEY
 const YELP_API_KEY = process.env.YELP_API_KEY
@@ -9,7 +10,7 @@ const YELP_API_KEY = process.env.YELP_API_KEY
 // Helper function to search Yelp
 async function searchYelp(name: string, latitude: number, longitude: number) {
   try {
-    // console.log(`Searching Yelp for: ${name} at ${latitude},${longitude}`);
+    console.log(`Searching Yelp for: ${name} at ${latitude},${longitude}`);
     const response = await fetch(
       `https://api.yelp.com/v3/businesses/search?term=${encodeURIComponent(name)}&latitude=${latitude}&longitude=${longitude}&limit=1`,
       {
@@ -18,10 +19,10 @@ async function searchYelp(name: string, latitude: number, longitude: number) {
         }
       }
     );
-    // console.log('Yelp response status:', response.status);
+    console.log('Yelp response status:', response.status);
     if (response.ok) {
       const data = await response.json();
-      // console.log('Yelp data:', data.businesses?.[0]);
+      console.log('Yelp data:', data.businesses?.[0]);
       return data.businesses?.[0] || null;
     }
     const errorText = await response.text();
@@ -29,6 +30,37 @@ async function searchYelp(name: string, latitude: number, longitude: number) {
     return null;
   } catch (error) {
     console.error('Yelp API error:', error);
+    return null;
+  }
+}
+
+// Add this helper function
+async function getPlacePhoto(place_id: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://places.googleapis.com/v1/places/${place_id}?fields=photos`, {
+      headers: {
+        'X-Goog-Api-Key': API_KEY!,
+      }
+    });
+
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data.photos?.[0]?.name) return null;
+
+    // Get the first photo
+    const photoResponse = await fetch(`https://places.googleapis.com/v1/${data.photos[0].name}/media`, {
+      headers: {
+        'X-Goog-Api-Key': API_KEY!,
+      }
+    });
+
+    if (!photoResponse.ok) return null;
+    const photoData = await photoResponse.json();
+    return photoData.photoUri || null;
+
+  } catch (error) {
+    console.error('Error fetching place photo:', error);
     return null;
   }
 }
@@ -140,17 +172,19 @@ export async function POST(request: Request) {
         if (data.places) {
           for (const place of data.places) {
             if (!allPlaces.has(place.id)) {
-              // Get Yelp data directly without Google details
-              const yelpData = await searchYelp(
-                place.displayName?.text,
-                place.location?.latitude,
-                place.location?.longitude
-              );
-              // console.log(`Yelp data for ${place.displayName?.text}:`, yelpData);
+              const [yelpData, photoUrl] = await Promise.all([
+                searchYelp(
+                  place.displayName?.text,
+                  place.location?.latitude,
+                  place.location?.longitude
+                ),
+                getPlacePhoto(place.id)
+              ]);
 
               allPlaces.set(place.id, {
                 ...place,
                 yelp: yelpData,
+                main_image_url: photoUrl || yelpData?.image_url || null,
                 features: {
                   wheelchair_accessible: place.wheelchairAccessibleEntrance,
                   serves_vegetarian: place.servesVegetarianFood,
@@ -168,36 +202,20 @@ export async function POST(request: Request) {
     // Convert map to array
     const places = Array.from(allPlaces.values())
     
-    // Get cuisine classifications for each place
-    const cuisinePromises = places.map(async (place) => {
+    // Get cuisine classifications using helper directly
+    const placesWithCuisines = await Promise.all(places.map(async (place) => {
       try {
-        const response = await fetch('/api/ai/cuisine', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: place.displayName?.text,
-            types: place.types,
-            yelpCategories: place.yelp?.categories?.map(cat => cat.title) || []
-          })
-        });
-
-        if (response.ok) {
-          const { cuisines } = await response.json();
-          return {
-            ...place,
-            cuisines
-          };
-        }
-        return place;
+        const restaurantInfo = `Name: ${place.displayName?.text}, Types: ${place.types?.join(", ")}, Yelp Categories: ${place.yelp?.categories?.map(cat => cat.title).join(", ")}`;
+        const cuisines = await classifyCuisine(restaurantInfo);
+        return {
+          ...place,
+          cuisines
+        };
       } catch (error) {
         console.error(`Failed to get cuisines for ${place.displayName?.text}:`, error);
         return place;
       }
-    });
-
-    const placesWithCuisines = await Promise.all(cuisinePromises);
+    }));
     
     // Log final results to database
     await db.insert(apiRequestLogs).values({
