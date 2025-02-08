@@ -111,7 +111,7 @@ export default async function EventPage({
               <h2 className="mb-8 text-3xl font-bold text-primary">
                 Restaurant Rankings
               </h2>
-              {rankings ? (
+              {rankings && rankings.length > 0 ? (
                 <RankedRestaurants rankings={rankings} />
               ) : (
                 <div className="rounded-lg bg-white p-8 shadow-lg text-center">
