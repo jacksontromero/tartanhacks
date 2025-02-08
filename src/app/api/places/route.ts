@@ -10,7 +10,7 @@ const YELP_API_KEY = process.env.YELP_API_KEY
 // Helper function to search Yelp
 async function searchYelp(name: string, latitude: number, longitude: number) {
   try {
-    console.log(`Searching Yelp for: ${name} at ${latitude},${longitude}`);
+    // console.log(`Searching Yelp for: ${name} at ${latitude},${longitude}`);
     const response = await fetch(
       `https://api.yelp.com/v3/businesses/search?term=${encodeURIComponent(name)}&latitude=${latitude}&longitude=${longitude}&limit=1`,
       {
@@ -19,10 +19,10 @@ async function searchYelp(name: string, latitude: number, longitude: number) {
         }
       }
     );
-    console.log('Yelp response status:', response.status);
+    // console.log('Yelp response status:', response.status);
     if (response.ok) {
       const data = await response.json();
-      console.log('Yelp data:', data.businesses?.[0]);
+      // console.log('Yelp data:', data.businesses?.[0]);
       return data.businesses?.[0] || null;
     }
     const errorText = await response.text();
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
                 place.location?.latitude,
                 place.location?.longitude
               );
-              console.log(`Yelp data for ${place.displayName?.text}:`, yelpData);
+              // console.log(`Yelp data for ${place.displayName?.text}:`, yelpData);
 
               allPlaces.set(place.id, {
                 ...place,
