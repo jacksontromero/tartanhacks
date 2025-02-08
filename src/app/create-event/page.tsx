@@ -89,7 +89,7 @@ export default function CreateEventPage() {
       router.push(`/event/${event.id}`);
 
       const selectedLocation = LOCATIONS.find(loc => loc.name === values.location);
-      
+
       if (selectedLocation) {
         const placesRes = await fetch('/api/places', {
           method: 'POST',
@@ -102,9 +102,9 @@ export default function CreateEventPage() {
             longitude: selectedLocation.lng
           })
         });
-        
+
         if (!placesRes.ok) {
-          console.error('Failed to fetch places');
+          console.log('Failed to fetch places (likely still waiting for data)');
         }
       }
     } catch (error) {

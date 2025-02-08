@@ -15,6 +15,9 @@ export default function RestaurantCard({ restaurant, score, rank }: RestaurantCa
   // Use a placeholder image or another available property for the image source
   const imageUrl = restaurant.main_image_url
 
+  // deduplicate cuisines
+  const uniqueCuisines = [...new Set(restaurant.cuisines)];
+
   return (
     <motion.div
       className="relative overflow-hidden rounded-xl bg-white p-6 shadow-lg"
@@ -56,7 +59,7 @@ export default function RestaurantCard({ restaurant, score, rank }: RestaurantCa
           </div>
 
           <div className="mb-2 flex flex-wrap gap-2">
-            {restaurant.cuisines.map((cuisine) => (
+            {uniqueCuisines.map((cuisine) => (
               <span
                 key={cuisine}
                 className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground"
