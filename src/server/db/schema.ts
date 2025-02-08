@@ -260,6 +260,12 @@ export const rankedPlaces = createTable("ranked_places", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const rankedPlacesRelations = relations(rankedPlaces, ({ one }) => ({
+  event: one(events, {
+    fields: [rankedPlaces.event_id],
+    references: [events.id],
+  }),
+}));
 
 export const placesRelations = relations(places, ({ one, many }) => ({
   event: one(events, {
@@ -283,6 +289,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   places: many(places),
   apiLogs: many(apiLogs),
+  rankedPlaces: many(rankedPlaces),
 }));
 
 export const apiLogsRelations = relations(apiLogs, ({ one }) => ({

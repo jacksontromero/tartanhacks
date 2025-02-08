@@ -4,9 +4,30 @@ import { eq, desc } from "drizzle-orm";
 import { eventResponses, apiLogs, rankedPlaces } from "~/server/db/schema";
 import { aggregatePreferences, scoreRestaurant } from "~/lib/ranking";
 
+interface YelpCategory {
+  alias: string;
+  title: string;
+}
+
 interface Restaurant {
+  id: string;
+  displayName: { text: string };
+  rating?: number;
+  userRatingCount?: number;
+  yelp?: {
+    categories: YelpCategory[];
+    rating: number;
+    review_count: number;
+    price?: string;
+  };
+  cuisines: string[];
+  formattedAddress: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
   types?: string[];
-  cuisines?: string[];
+  features?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -19,6 +40,21 @@ interface APILog {
   event_id: string;
   timestamp: Date;
 }
+
+// Helper to parse string arrays like "[\"Breakfast\"]" into ["Breakfast"]
+const parseStringArray = (str: string | null | undefined, defaultValue: string[] = []) => {
+  try {
+    if (!str) return defaultValue;
+    // Remove brackets and split by comma, then clean up quotes
+    return str
+      .replace(/^\[|\]$/g, '') // Remove [ and ]
+      .split(',')
+      .map(item => item.trim().replace(/^"|"$/g, '')) // Remove quotes
+      .filter(item => item.length > 0); // Remove empty items
+  } catch (e) {
+    return defaultValue;
+  }
+};
 
 export async function GET(
   request: Request,
@@ -51,10 +87,26 @@ export async function GET(
 
     console.log(`Found ${responses.length} responses for event: ${event_id}`);
 
+    // Parse the responses
+    const parsedResponses = responses.map(response => ({
+      ...response,
+      preferred_cuisines: parseStringArray(response.preferredCuisines),
+      anti_preferred_cuisines: parseStringArray(response.antiPreferredCuisines),
+      dietary_restrictions: parseStringArray(response.dietaryRestrictions),
+      acceptable_price_ranges: parseStringArray(response.acceptablePriceRanges),
+      ranked_cuisines: parseStringArray(response.rankedCuisines)
+    }));
+
+    // Now aggregate the parsed preferences
+    const preferences = aggregatePreferences(parsedResponses);
+
+    console.log('Parsed responses:', parsedResponses);
+    console.log('Aggregated preferences:', preferences);
+
     // Get latest API log with places data
     const latestApiLog = await db.query.apiLogs.findFirst({
       where: eq(apiLogs.event_id, event_id),
-      orderBy: (apiLogs, { desc }) => [desc(apiLogs.timestamp)],
+      orderBy: [desc(apiLogs.timestamp)],
     }) as APILog | null;
 
     if (!latestApiLog?.response?.places) {
@@ -76,32 +128,44 @@ export async function GET(
 
     console.log(`Found ${restaurants.length} restaurants for event: ${event_id}`);
 
-    // Aggregate preferences from responses
-    const preferences = aggregatePreferences(responses);
-    
-    console.log('Aggregated preferences:', preferences);
-
     // Score and rank restaurants
     const results = restaurants
       .map(restaurant => {
-        const restaurantWithCuisines = {
-          ...restaurant,
-          cuisines: restaurant.types || [], // Use types as cuisines if cuisines not present
+        const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
+        
+        const restaurantWithCuisines: PlaceDetails = {
+          name: restaurant.displayName.text,
+          address: restaurant.formattedAddress,
+          coordinates: {
+            lat: restaurant.location?.latitude,
+            lng: restaurant.location?.longitude
+          },
+          rating: calculateAggregateRating(
+            restaurant.rating,
+            restaurant.userRatingCount,
+            restaurant.yelp?.rating,
+            restaurant.yelp?.review_count
+          ),
+          total_ratings: (restaurant.userRatingCount || 0) + (restaurant.yelp?.review_count || 0),
+          price_level: restaurant.yelp?.price?.length || 2,
+          phone_number: restaurant.yelp?.phone || '',
+          website: restaurant.yelp?.url || '',
+          opening_hours: [],
+          place_id: restaurant.id,
+          types: restaurant.types || [],
+          cuisines: [...(restaurant.cuisines || []), ...yelpCuisines],
+          features: restaurant.features || {},
+          reviews: []
         };
         
-        const score = scoreRestaurant(restaurantWithCuisines, preferences);
+        const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
         
         return {
-          restaurant: restaurantWithCuisines,
+          restaraunt: restaurantWithCuisines,
           score
         };
       })
-      // .filter(entry => entry.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map(entry => ({ 
-        restaurant: entry.restaurant, 
-        score: entry.score 
-      }));
+      .sort((a, b) => b.score - a.score);
 
     if (results.length === 0) {
       console.log(`No restaurants matched scoring criteria for event: ${event_id}`);
@@ -116,7 +180,7 @@ export async function GET(
     // Prepare ranked results for storage
     const rankedPlacesToInsert = results.map(result => ({
       event_id,
-      place_details: result.restaurant,
+      place_details: result.restaraunt,
       score: result.score
     }));
 
@@ -135,6 +199,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       event_id,
+      preferences: {
+        preferred_cuisines: Object.keys(preferences.preferredCuisines),
+        antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
+      },
       rankings: results,
       meta: {
         total_responses: responses.length,
@@ -153,4 +221,22 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+// Helper function to calculate weighted rating
+function calculateAggregateRating(
+  googleRating?: number,
+  googleCount?: number,
+  yelpRating?: number,
+  yelpCount?: number
+): number {
+  if (!googleRating && !yelpRating) return 0;
+
+  const googleWeight = googleCount ? googleCount / (googleCount + (yelpCount || 0)) : 0;
+  const yelpWeight = yelpCount ? yelpCount / (yelpCount + (googleCount || 0)) : 0;
+
+  return (
+    ((googleRating || 0) * googleWeight + (yelpRating || 0) * yelpWeight) /
+    (googleWeight + yelpWeight || 1)
+  );
 }

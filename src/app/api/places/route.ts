@@ -168,6 +168,37 @@ export async function POST(request: Request) {
     // Convert map to array
     const places = Array.from(allPlaces.values())
     
+    // Get cuisine classifications for each place
+    const cuisinePromises = places.map(async (place) => {
+      try {
+        const response = await fetch('/api/ai/cuisine', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: place.displayName?.text,
+            types: place.types,
+            yelpCategories: place.yelp?.categories?.map(cat => cat.title) || []
+          })
+        });
+
+        if (response.ok) {
+          const { cuisines } = await response.json();
+          return {
+            ...place,
+            cuisines
+          };
+        }
+        return place;
+      } catch (error) {
+        console.error(`Failed to get cuisines for ${place.displayName?.text}:`, error);
+        return place;
+      }
+    });
+
+    const placesWithCuisines = await Promise.all(cuisinePromises);
+    
     // Log final results to database
     await db.insert(apiRequestLogs).values({
       event_id: event_id || null,
@@ -179,7 +210,7 @@ export async function POST(request: Request) {
         offsets,
         radii
       },
-      response: { places },
+      response: { places: placesWithCuisines },
       error: null,
       duration: Date.now() - startTime,
       status: 200
@@ -188,7 +219,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       event_id: event_id,
-      places
+      places: placesWithCuisines
     })
 
   } catch (error) {
