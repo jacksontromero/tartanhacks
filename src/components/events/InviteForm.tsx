@@ -63,7 +63,7 @@ export default function InviteForm({
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await fetch(`/api/events/${eventId}/responses`, {
+      const res = await fetch(`/api/events/${eventId}/responses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,7 +71,11 @@ export default function InviteForm({
         body: JSON.stringify(values),
       });
 
-      router.push(`/event/${eventId}/thanks`);
+      if (!res.ok) {
+        throw new Error(res.statusText);
+      } else {
+        router.push(`/event/${eventId}/thanks`);
+      }
     } catch (error) {
       console.error("Failed to submit response:", error);
     }
