@@ -122,6 +122,7 @@ export async function POST(request: Request) {
             'X-Goog-Api-Key': API_KEY,
             'X-Goog-FieldMask': [
               'places.id',
+              'places.types',
               'places.displayName', 
               'places.formattedAddress',
               'places.location',
@@ -205,7 +206,29 @@ export async function POST(request: Request) {
     // Get cuisine classifications using helper directly
     const placesWithCuisines = await Promise.all(places.map(async (restaurant) => {
       try {
-        const restaurantInfo = `Name: ${restaurant.displayName.text}, Types: ${restaurant.types?.join(", ")}, Yelp Categories: ${restaurant.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ")}, Address: ${restaurant.formattedAddress}, Price Level: ${restaurant.priceLevel}, Rating: ${restaurant.rating}, Total Reviews: ${restaurant.userRatingCount}, Features: ${JSON.stringify(restaurant.features)}, Reviews: ${restaurant.reviews?.slice(0,3).map((r: {text: string}) => r.text.text).join(" | ") || ""}, Yelp Reviews: ${restaurant.yelp?.reviews?.[0]?.text || ""}`;
+        // Build restaurant info string in steps
+        const name = restaurant.displayName.text;
+        const types = restaurant.types?.join(", ") || "";
+        const yelpCategories = restaurant.yelp?.categories?.map((cat: {title: string}) => cat.title).join(", ") || "";
+        const address = restaurant.formattedAddress;
+        const priceLevel = restaurant.priceLevel;
+        const rating = restaurant.rating;
+        const totalReviews = restaurant.userRatingCount;
+        const features = JSON.stringify(restaurant.features);
+        const reviews = restaurant.reviews
+          ?.slice(0,3)
+          ?.map((r: any) => {
+            // Handle different possible review text structures
+            if (r?.text?.text) return r.text.text;
+            if (r?.text) return r.text;
+            return '';
+          })
+          .filter(Boolean)  // Remove empty strings
+          .join(" | ") || "";
+        const yelpReviews = restaurant.yelp?.reviews?.[0]?.text || "";
+
+        // Combine all parts
+        const restaurantInfo = `Name: ${name}, Types: ${types}, Yelp Categories: ${yelpCategories}, Address: ${address}, Price Level: ${priceLevel}, Rating: ${rating}, Total Reviews: ${totalReviews}, Features: ${features}, Reviews: ${reviews}, Yelp Reviews: ${yelpReviews}`;
         
         let cuisines = [];
         let attempts = 0;
@@ -216,10 +239,9 @@ export async function POST(request: Request) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between retries
           }
         }
-
         return {
           ...restaurant,
-          cuisines: [...cuisines, ...restaurant.types]
+          cuisines: cuisines
         };
       } catch (error) {
         console.error(`Failed to get cuisines for ${restaurant.displayName?.text}:`, error);

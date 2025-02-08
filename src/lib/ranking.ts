@@ -57,7 +57,7 @@ export async function getRankingsForEvent(event_id: string) {
       opening_hours: [],
       place_id: restaurant.id,
       types: restaurant.types || [],
-      cuisines: [...cuisines, ...(restaurant.types || [])],
+      cuisines: cuisines,
       features: restaurant.features || {},
       reviews: [],
       main_image_url: restaurant.main_image_url || null,
