@@ -128,3 +128,28 @@ export const events = createTable("event", {
     .notNull()
     .references(() => users.id),
 });
+
+export const eventResponses = createTable("event_response", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  eventId: varchar("event_id", { length: 255 })
+    .notNull()
+    .references(() => events.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  dietaryRestrictions: text("dietary_restrictions").notNull(),
+  preferredCuisines: text("preferred_cuisines").notNull(),
+  rankedPreferredCuisines: text("ranked_preferred_cuisines").notNull(),
+  antiPreferredCuisines: text("anti_preferred_cuisines").notNull(),
+  acceptablePriceRanges: text("acceptable_price_ranges").notNull(),
+  comments: text("comments"),
+  createdAt: timestamp("created_at", {
+    mode: "date",
+    withTimezone: true,
+  }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const eventsRelations = relations(events, ({ many }) => ({
+  responses: many(eventResponses),
+}));

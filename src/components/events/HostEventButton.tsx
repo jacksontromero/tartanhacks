@@ -15,7 +15,7 @@ export default function HostEventButton() {
   return (
     <button
       onClick={handleClick}
-      className="rounded-full bg-primary px-10 py-3 font-semibold text-secondary-foreground shadow-lg transition hover:bg-primary/90"
+      className="rounded-full bg-primary px-10 py-3 font-semibold text-primary-foreground shadow-lg transition hover:bg-primary/90"
     >
       Host Event
     </button>

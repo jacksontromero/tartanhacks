@@ -18,7 +18,7 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
-  			background: "#f0fdf4", // Very light mint
+  			background: "#f0faf0",  // Even lighter green
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
@@ -29,12 +29,12 @@ export default {
   				foreground: 'hsl(var(--popover-foreground))'
   			},
   			primary: {
-  				DEFAULT: "#4ade80", // Light green
+  				DEFAULT: "#166534",   // Darker green for buttons
   				foreground: "#ffffff",
   			},
   			secondary: {
-  				DEFAULT: "#bbf7d0", // Lighter pastel green
-  				foreground: "#166534", // Dark green for text
+  				DEFAULT: "#dcfce7",   // Current light green for pills
+  				foreground: "#166534", // Dark green text
   			},
   			muted: {
   				DEFAULT: "#dcfce7",
