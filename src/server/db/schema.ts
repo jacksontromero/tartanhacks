@@ -218,7 +218,7 @@ export const apiLogs = createTable("api_log", {
   })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
-  eventId: varchar("event_id", { length: 255 })
+    event_id: varchar("event_id", { length: 255 })
     .references(() => events.id),
   request: json("request").$type<{
     area?: string;
@@ -267,7 +267,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 
 export const apiLogsRelations = relations(apiLogs, ({ one }) => ({
   event: one(events, {
-    fields: [apiLogs.eventId],
+    fields: [apiLogs.event_id],
     references: [events.id],
   }),
 }));
