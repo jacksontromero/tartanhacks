@@ -12,7 +12,7 @@ interface AggregatedPreferences {
     acceptablePriceRanges: Set<PriceLevel>
     rankedCuisines: string[]
   }
-  
+
   function aggregatePreferences(eventResponses: any[]): AggregatedPreferences {
     const preferences: AggregatedPreferences = {
       preferredCuisines: {},
@@ -21,22 +21,22 @@ interface AggregatedPreferences {
       acceptablePriceRanges: new Set(),
       rankedCuisines: [],
     };
-  
+
     const cuisineRankingScores: Record<string, number[]> = {};
     eventResponses.forEach(response => {
       response.preferredCuisines.forEach((cuisine: string) => {
-        let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+        const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
         preferences.preferredCuisines[cuisineMap] = (preferences.preferredCuisines[cuisineMap] || 0) + 1;
       });
       response.antiPreferredCuisines.forEach((cuisine: string) => {
-        let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+        const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
         preferences.antiPreferredCuisines[cuisineMap] = (preferences.antiPreferredCuisines[cuisineMap] || 0) + 1;
       });
       response.dietaryRestrictions.forEach((restriction: string) => {
         preferences.dietaryRestrictions.add(restriction);
       });
       response.acceptablePriceRanges.forEach((price: string) => {
-        let priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
+        const priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
         preferences.acceptablePriceRanges.add(priceMap);
       });
       // Aggregate ranked cuisines
@@ -47,7 +47,7 @@ interface AggregatedPreferences {
         cuisineRankingScores[cuisine].push(index);
       });
     });
-  
+
     // Compute average ranking scores and sort cuisines by preference
     const aggregatedRanking = Object.entries(cuisineRankingScores)
       .map(([cuisine, rankings]) => ({
@@ -56,15 +56,15 @@ interface AggregatedPreferences {
       }))
       .sort((a, b) => a.avgRank - b.avgRank) // Lower average rank is better
       .map(entry => entry.cuisine);
-  
+
     preferences.rankedCuisines = aggregatedRanking;
-  
+
     return preferences;
   }
-  
+
   function scoreRestaurant(restaurant: PlaceDetails, preferences: AggregatedPreferences): number {
     let score = 0;
-  
+
     // Match cuisine preferences
     restaurant.cuisines.forEach(cuisine => {
       if (preferences.preferredCuisines[cuisine]) {
@@ -86,23 +86,23 @@ interface AggregatedPreferences {
     }
     // Check price range
     const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
-    if (restaurant.price_level != PriceLevel.PRICE_LEVEL_UNSPECIFIED && restaurant.price_level <= lowestAcceptablePrice) {
+    if (restaurant.price_level != PriceLevel.PRICE_LEVEL_UNSPECIFIED && restaurant.price_level.valueOf() <= lowestAcceptablePrice) {
         score += 10;
     } else if (!preferences.acceptablePriceRanges.has(restaurant.price_level)) {
         score -= 5;
     }
-  
+
     // TODO: find other dietary indicators through LLM and incorporate
     if (preferences.dietaryRestrictions.has('Vegetarian') && !restaurant.features.serves_vegetarian) {
       score -= 10;
     }
-  
-    score += restaurant.rating 
+
+    score += restaurant.rating
     // TODO: incorporate total number of ratings
 
     return score;
   }
-  
+
   async function filterAndRankRestaurants(event_id: string): Promise<HostDetails[]> {
     // Get event responses
     const responses = await db.query.eventResponses.findMany({

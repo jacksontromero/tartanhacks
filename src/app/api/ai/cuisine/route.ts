@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     );
 
     const result = await model.generateContent(["Given this data for a restaurant description and reviews, determine the cuisine that best describes the restaurant: " + input]);
-    const response = await result.response;
+    const response = result.response;
 
     return NextResponse.json({ response: response.text() });
   } catch (error) {

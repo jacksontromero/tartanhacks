@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     );
 
     const result = await model.generateContent(["Given a restaurant description and reviews, indicate whether the restaurant accomodates the given dietary restriction. Dietary restriction: **" + dietaryRestriction + "**" + ". Restaurant description and reviews: **" + restaurantData + "**"]);
-    const response = await result.response;
+    const response = result.response;
 
     return NextResponse.json({ response: response.text() });
   } catch (error) {

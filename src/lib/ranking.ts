@@ -26,7 +26,7 @@ export async function getRankingsForEvent(event_id: string) {
 
   // Aggregate preferences
   const preferences = aggregatePreferences(responses);
-  
+
   // Rank restaurants
   const rankings = await Promise.all(latestApiLog.response.places.map(async restaurant => {
     const result = await rankRestaurantsForEvent(
@@ -67,7 +67,7 @@ export async function getRankingsForEvent(event_id: string) {
       ranked_restaurants: rankings.length
     }
   };
-} 
+}
 
 function calculateAggregateRating(
   googleRating?: number,
@@ -112,12 +112,12 @@ export function aggregatePreferences(eventResponses: any[]): AggregatedPreferenc
     const rankedCuisines = JSON.parse(response.rankedCuisines);
 
     preferredCuisines.forEach((cuisine: string) => {
-      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+      const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
       preferences.preferredCuisines[cuisineMap] = (preferences.preferredCuisines[cuisineMap] || 0) + 1;
     });
 
     antiPreferredCuisines.forEach((cuisine: string) => {
-      let cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
+      const cuisineMap = CUISINE_MAPPINGS[cuisine] || '';
       preferences.antiPreferredCuisines[cuisineMap] = (preferences.antiPreferredCuisines[cuisineMap] || 0) + 1;
     });
 
@@ -126,7 +126,7 @@ export function aggregatePreferences(eventResponses: any[]): AggregatedPreferenc
     });
 
     acceptablePriceRanges.forEach((price: string) => {
-      let priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
+      const priceMap = PRICE_MAPPINGS[price] || PriceLevel.PRICE_LEVEL_UNSPECIFIED;
       preferences.acceptablePriceRanges.add(priceMap);
     });
 
@@ -177,7 +177,7 @@ export function scoreRestaurant(restaurant: PlaceDetails, preferences: Aggregate
   }
 
   const lowestAcceptablePrice = Math.min(...Array.from(preferences.acceptablePriceRanges));
-  if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel <= lowestAcceptablePrice) {
+  if (priceLevel !== PriceLevel.PRICE_LEVEL_UNSPECIFIED && priceLevel.valueOf() <= lowestAcceptablePrice) {
     score += 10;
   } else if (!preferences.acceptablePriceRanges.has(priceLevel)) {
     score -= 5;
@@ -205,7 +205,7 @@ export async function rankRestaurantsForEvent(
 ): Promise<HostDetails[]> {
   const results = await Promise.all(restaurants.map(async restaurant => {
     const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
-    
+
     const restaurantWithCuisines: PlaceDetails = {
       name: restaurant.displayName.text,
       address: restaurant.formattedAddress,
@@ -230,9 +230,9 @@ export async function rankRestaurantsForEvent(
       features: restaurant.features || {},
       reviews: []
     };
-    
+
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
-  
+
     return {
       restaraunt: restaurantWithCuisines,
       score,
