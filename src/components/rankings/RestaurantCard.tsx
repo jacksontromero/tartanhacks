@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { PlaceDetails } from "~/constants/types";
 import Image from "next/image";
-import { Star, DollarSign } from "lucide-react";
+import { Star, Check, Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -9,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "~/components/ui/dialog";
 import { useState } from "react";
@@ -20,21 +19,27 @@ interface RestaurantCardProps {
   score: number;
   rank: number;
   eventId: string;
+  isFinal?: boolean;
 }
 
-export default function RestaurantCard({ restaurant, score, rank, eventId }: RestaurantCardProps) {
+export default function RestaurantCard({
+  restaurant,
+  score,
+  rank,
+  eventId,
+  isFinal = false
+}: RestaurantCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const priceLevel = "💰".repeat(restaurant.price_level || 0);
 
-  // Use a placeholder image or another available property for the image source
-  const imageUrl = restaurant.main_image_url
-
-  // deduplicate cuisines
+  const imageUrl = restaurant.main_image_url;
   const uniqueCuisines = [...new Set(restaurant.cuisines)];
 
   const handleSelectRestaurant = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch(`/api/events/${eventId}/select-restaurant`, {
         method: 'POST',
         headers: {
@@ -51,6 +56,8 @@ export default function RestaurantCard({ restaurant, score, rank, eventId }: Res
       router.refresh();
     } catch (error) {
       console.error('Error selecting restaurant:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,9 +89,27 @@ export default function RestaurantCard({ restaurant, score, rank, eventId }: Res
           <div className="flex-1">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-primary">{restaurant.name}</h2>
-              <span className="rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
-                Score: {score.toFixed(1)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
+                  Score: {score.toFixed(1)}
+                </span>
+                {!isFinal && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDialogOpen(true)}
+                    className="ml-2"
+                  >
+                    <Star className="h-4 w-4" />
+                  </Button>
+                )}
+                {isFinal && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <Check className="h-5 w-5" />
+                    Final Pick
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="mb-4 flex items-center gap-4 text-muted-foreground">
@@ -107,14 +132,6 @@ export default function RestaurantCard({ restaurant, score, rank, eventId }: Res
             </div>
 
             <p className="text-sm text-muted-foreground">{restaurant.address}</p>
-
-            <Button
-              variant="default"
-              onClick={() => setDialogOpen(true)}
-              className="w-full"
-            >
-              Select This Restaurant
-            </Button>
           </div>
         </div>
       </motion.div>
@@ -132,8 +149,18 @@ export default function RestaurantCard({ restaurant, score, rank, eventId }: Res
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSelectRestaurant}>
-              Confirm Selection
+            <Button
+              onClick={handleSelectRestaurant}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                'Confirm Selection'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

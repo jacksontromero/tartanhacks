@@ -26,13 +26,23 @@ export default async function EventPage({
 
   const isHost = session?.user?.id === event.hostId;
   let rankings = null;
+  let finalRestaurant = null;
 
-  if (isHost) {
+  // If there's a final restaurant, create a HostDetails object for it
+  if (event.finalRestaurantDetails) {
+    finalRestaurant = {
+      restaraunt: event.finalRestaurantDetails,
+      score: 0, // Score doesn't matter for final selection
+      ProsCons: ""
+    };
+  }
+
+  // Only fetch rankings if we're the host and no final restaurant is selected
+  if (isHost && !finalRestaurant) {
     try {
       const rankingData = await getRankingsForEvent(id);
       rankings = rankingData.rankings;
     } catch (error) {
-      // If there are no responses yet, getRankingsForEvent will throw
       console.log("No rankings available yet");
     }
   }
@@ -45,8 +55,8 @@ export default async function EventPage({
     <main className="bg-background min-h-screen">
       <div className="w-full p-8">
         <div className="flex gap-12 w-full justify-around">
-          {/* Event Details Card - Full width if not host, left side if host */}
-          <div className={`rounded-lg h-fit bg-white p-8 shadow-lg ${isHost ? 'w-[300px] flex-shrink-0' : 'w-full max-w-2xl mx-auto'}`}>
+          {/* Event Details Card - Keep consistent width */}
+          <div className="w-[300px] flex-shrink-0 rounded-lg bg-white p-8 shadow-lg">
             <h1 className="text-3xl font-bold text-primary">{event.title}</h1>
 
             {event.description && (
@@ -72,47 +82,61 @@ export default async function EventPage({
               </div>
             </div>
 
-            <div className="mt-6">
-              <h2 className="font-semibold text-primary">Price Ranges</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {priceRanges.map((range) => (
-                  <span
-                    key={range}
-                    className="rounded-full bg-secondary px-3 py-1 text-sm text-primary"
-                  >
-                    {range}
-                  </span>
-                ))}
-              </div>
-            </div>
+            {!finalRestaurant && (
+              <>
+                <div className="mt-6">
+                  <h2 className="font-semibold text-primary">Price Ranges</h2>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {priceRanges.map((range) => (
+                      <span
+                        key={range}
+                        className="rounded-full bg-secondary px-3 py-1 text-sm text-primary"
+                      >
+                        {range}
+                      </span>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="mt-6">
-              <h2 className="font-semibold text-primary">Cuisine Types</h2>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {cuisineTypes.map((cuisine) => (
-                  <span
-                    key={cuisine}
-                    className="rounded-full bg-secondary px-3 py-1 text-sm text-primary"
-                  >
-                    {cuisine}
-                  </span>
-                ))}
-              </div>
-            </div>
+                <div className="mt-6">
+                  <h2 className="font-semibold text-primary">Cuisine Types</h2>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {cuisineTypes.map((cuisine) => (
+                      <span
+                        key={cuisine}
+                        className="rounded-full bg-secondary px-3 py-1 text-sm text-primary"
+                      >
+                        {cuisine}
+                      </span>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="mt-6 flex justify-center">
-              <CopyInviteButton eventId={event.id} />
-            </div>
+                <div className="mt-6 flex justify-center">
+                  <CopyInviteButton eventId={event.id} />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Rankings Section - Only show for host */}
-          {isHost && (
+          {/* Restaurant Section - Keep consistent width */}
+          {(isHost || finalRestaurant) && (
             <div className="flex-1">
               <h2 className="mb-8 text-3xl font-bold text-primary">
-                Restaurant Rankings
+                {finalRestaurant ? 'Selected Restaurant' : 'Restaurant Rankings'}
               </h2>
-              {rankings && rankings.length > 0 ? (
-                <RankedRestaurants rankings={rankings} eventId={event.id} />
+
+              {finalRestaurant ? (
+                <RankedRestaurants
+                  rankings={[]}
+                  eventId={event.id}
+                  finalRestaurant={finalRestaurant}
+                />
+              ) : rankings && rankings.length > 0 ? (
+                <RankedRestaurants
+                  rankings={rankings}
+                  eventId={event.id}
+                />
               ) : (
                 <div className="rounded-lg bg-white p-8 shadow-lg text-center">
                   <p className="text-lg text-muted-foreground">
