@@ -7,7 +7,7 @@ import Navbar from "~/components/nav/Navbar";
 import { Toaster } from "~/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "Where2Eat",
+  title: "HostTable",
   description: "TartanHacks 2025 Project",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };

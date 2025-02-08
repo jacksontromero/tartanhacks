@@ -12,7 +12,7 @@ export default async function Navbar() {
           href="/"
           className="text-xl font-semibold text-secondary-foreground hover:text-secondary-foreground/80 transition"
         >
-          Where2Eat
+          HostTable
         </Link>
 
         {session?.user && (
