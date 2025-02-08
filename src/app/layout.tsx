@@ -18,10 +18,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable} h-full`}>
       <body className="min-h-full bg-background font-sans antialiased">
-        <Navbar />
-        <div className="flex-1">
-          <SessionProvider>{children}</SessionProvider>
-        </div>
+        <SessionProvider>
+          <Navbar />
+          <div className="flex-1">
+            {children}
+          </div>
+        </SessionProvider>
         <Toaster />
       </body>
     </html>
