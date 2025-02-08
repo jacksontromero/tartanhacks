@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { Check, ChevronsUpDown } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -18,22 +19,39 @@ import {
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "~/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import { CUISINE_TYPES, LOCATIONS, PRICE_RANGES } from "~/constants/cuisines";
+import { cn } from "~/lib/utils";
+import { MultiSelect } from "~/components/ui/multi-select";
 
 const formSchema = z.object({
   title: z.string().min(2, {
     message: "Title must be at least 2 characters.",
   }),
   description: z.string().optional(),
-  date: z.string(), // We'll validate this as a date string
-  priceRange: z.enum(["$", "$$", "$$$", "$$$$"]),
-  cuisinePreference: z.string().optional(),
-  dietaryRestrictions: z.array(z.string()).default([]),
+  date: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  location: z.string({
+    required_error: "Please select a location.",
+  }),
+  priceRanges: z.array(z.string()).min(1, {
+    message: "Please select at least one price range.",
+  }),
+  cuisineTypes: z.array(z.string()).min(1, {
+    message: "Please select at least one cuisine type.",
+  }),
 });
 
 export default function CreateEventPage() {
@@ -43,10 +61,12 @@ export default function CreateEventPage() {
     defaultValues: {
       title: "",
       description: "",
-      date: new Date().toISOString().split("T")[0], // Today's date as default
-      priceRange: "$$",
-      cuisinePreference: "",
-      dietaryRestrictions: [],
+      date: new Date().toISOString().split("T")[0],
+      startTime: "19:00",
+      endTime: "21:00",
+      location: "",
+      priceRanges: [],
+      cuisineTypes: [],
     },
   });
 
@@ -109,15 +129,106 @@ export default function CreateEventPage() {
               )}
             />
 
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="startTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="date"
+              name="location"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
+                <FormItem className="flex flex-col">
+                  <FormLabel>Location</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? LOCATIONS.find(
+                                (location) => location === field.value
+                              )
+                            : "Select location"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search location..." />
+                        <CommandList>
+                          <CommandEmpty>No location found.</CommandEmpty>
+                          <CommandGroup>
+                            {LOCATIONS.map((location) => (
+                              <CommandItem
+                                key={location}
+                                value={location}
+                                onSelect={() => {
+                                  form.setValue("location", location);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    location === field.value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {location}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
@@ -125,26 +236,51 @@ export default function CreateEventPage() {
 
             <FormField
               control={form.control}
-              name="priceRange"
+              name="priceRanges"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Price Range</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a price range" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="$">$ (Under $15)</SelectItem>
-                      <SelectItem value="$$">$$ ($15-$30)</SelectItem>
-                      <SelectItem value="$$$">$$$ ($31-$60)</SelectItem>
-                      <SelectItem value="$$$$">$$$$ (Over $60)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Price Ranges</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      options={PRICE_RANGES.map(range => ({
+                        label: range.label,
+                        value: range.value,
+                      }))}
+                      defaultValue={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Select price ranges"
+                      maxCount={4}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Select all applicable price ranges for the event
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="cuisineTypes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuisine Types</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      options={CUISINE_TYPES.map(cuisine => ({
+                        label: cuisine,
+                        value: cuisine,
+                      }))}
+                      defaultValue={field.value}
+                      onValueChange={field.onChange}
+                      placeholder="Select cuisine types"
+                      maxCount={5}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Select all cuisine types you're interested in
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
