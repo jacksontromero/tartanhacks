@@ -62,7 +62,8 @@ export async function getRankingsForEvent(event_id: string) {
       types: restaurant.types || [],
       cuisines: [...aiCuisines, ...yelpCuisines],
       features: restaurant.features || {},
-      reviews: []
+      reviews: [],
+      main_image_url: restaurant.main_image_url || null,
     };
     
     const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
