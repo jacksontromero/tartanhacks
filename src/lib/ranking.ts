@@ -2,7 +2,7 @@ import { CUISINE_MAPPINGS, PRICE_MAPPINGS } from "~/constants/cuisines";
 import { PlaceDetails, PriceLevel } from "~/constants/types";
 import { db } from "~/server/db";
 import { eq, desc } from "drizzle-orm";
-import { eventResponses, apiLogs, rankedPlaces, EventResponse } from "~/server/db/schema";
+import { eventResponses, apiLogs, EventResponse } from "~/server/db/schema";
 import { classifyCuisine } from "~/lib/ai";
 
 export async function getRankingsForEvent(event_id: string) {
@@ -74,21 +74,6 @@ export async function getRankingsForEvent(event_id: string) {
 
   // Sort by score but don't normalize
   const sortedRankings = rankings.sort((a, b) => b.score - a.score);
-
-  // Store ranked results with scores
-  if (sortedRankings.length > 0) {
-    try {
-      await db.insert(rankedPlaces).values(
-        sortedRankings.map(result => ({
-          event_id,
-          place_details: result.restaraunt,
-          score: result.score
-        }))
-      );
-    } catch (error) {
-      console.error('Error storing rankings:', error);
-    }
-  }
 
   return {
     success: true,

@@ -249,30 +249,6 @@ export const apiLogs = createTable("api_log", {
   error: text("error"),
   status: integer("status").notNull().default(200),
 });
-export const rankedPlaces = createTable("ranked_places", {
-  id: varchar("id", { length: 255 })
-    .notNull()
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  event_id: varchar("event_id", { length: 255 })
-    .notNull()
-    .references(() => events.id),
-  place_details: json("place_details").$type<PlaceDetails>(),
-  score: numeric("score", { precision: 10, scale: 2 }).notNull(),
-  created_at: timestamp("created_at", {
-    mode: "date",
-    withTimezone: true,
-  })
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const rankedPlacesRelations = relations(rankedPlaces, ({ one }) => ({
-  event: one(events, {
-    fields: [rankedPlaces.event_id],
-    references: [events.id],
-  }),
-}));
 
 export const placesRelations = relations(places, ({ one, many }) => ({
   event: one(events, {
@@ -296,7 +272,6 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   places: many(places),
   apiLogs: many(apiLogs),
-  rankedPlaces: many(rankedPlaces),
   responses: many(eventResponses),
 }));
 
