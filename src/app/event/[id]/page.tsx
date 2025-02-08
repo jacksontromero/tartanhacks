@@ -27,6 +27,7 @@ export default async function EventPage({
   const isHost = session?.user?.id === event.hostId;
   let rankings = null;
   let finalRestaurant = null;
+  let data = null;
 
   // If there's a final restaurant, create a HostDetails object for it
   if (event.finalRestaurantDetails) {
@@ -40,8 +41,8 @@ export default async function EventPage({
   // Only fetch rankings if we're the host and no final restaurant is selected
   if (isHost && !finalRestaurant) {
     try {
-      const rankingData = await getRankingsForEvent(id);
-      rankings = rankingData.rankings;
+      data = await getRankingsForEvent(id);
+      rankings = data.rankings;
     } catch (error) {
       console.log("No rankings available yet");
     }
@@ -50,6 +51,8 @@ export default async function EventPage({
   // Parse JSON strings back to arrays
   const priceRanges = JSON.parse(event.priceRanges) as string[];
   const cuisineTypes = JSON.parse(event.cuisineTypes) as string[];
+
+  if (!data && !finalRestaurant && isHost) return <div>Loading...</div>;
 
   return (
     <main className="bg-background min-h-screen">
@@ -112,11 +115,21 @@ export default async function EventPage({
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-center">
-                  <CopyInviteButton eventId={event.id} />
-                </div>
-              </>
-            )}
+            <div className="mt-6 flex justify-center">
+              <CopyInviteButton eventId={event.id} />
+            </div>
+            {/* Metadata Card */}{
+              isHost && rankings && rankings.length > 0 &&
+            <div>
+              <h2 className="text-xl font-semibold text-primary pt-8">Overview</h2>
+                    <p className="mt-2">Number of Responses: <span className="font-medium">{data.totalParticipants}</span></p>
+                    <h4 className="mt-4 font-semibold">Overall Preferences</h4>
+                    <p>Preferred Cuisines: <span className="font-medium">{data.overallPreferences.preferred_cuisines.join(', ')}</span></p>
+                    <p>Anti-Preferred Cuisines: <span className="font-medium">{data.overallPreferences.antiPreferred_cuisines.join(', ')}</span></p>
+                    <p>Dietary Restrictions: <span className="font-medium">{data.overallPreferences.dietaryRestrictions.join(', ')}</span></p>
+                  </div>
+            }
+            </>)}
           </div>
 
           {/* Restaurant Section - Keep consistent width */}

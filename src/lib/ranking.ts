@@ -93,9 +93,12 @@ export async function getRankingsForEvent(event_id: string) {
   return {
     success: true,
     event_id,
-    preferences: {
+    totalParticipants: responses.length,
+    overallPreferences: {
       preferred_cuisines: Object.keys(preferences.cuisineScores),
-      antipreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
+      antiPreferred_cuisines: Object.keys(preferences.antiPreferredCuisines),
+      maxEffectivePrice: preferences.maxEffectivePrice,
+      dietaryRestrictions: Array.from(preferences.dietaryRestrictions),
     },
     rankings: sortedRankings,
     meta: {
