@@ -31,6 +31,7 @@ interface InviteFormProps {
 }
 
 export const eventResponseFormSchema = z.object({
+  name: z.string(),
   email: z.string().email(),
   dietaryRestrictions: z.array(z.string()),
   preferredCuisines: z.array(z.string()).min(1, {
@@ -64,6 +65,7 @@ export default function InviteForm({
   const form = useForm<z.infer<typeof eventResponseFormSchema>>({
     resolver: zodResolver(eventResponseFormSchema),
     defaultValues: {
+      name: "",
       email: "",
       dietaryRestrictions: [],
       preferredCuisines: [],
@@ -172,6 +174,19 @@ export default function InviteForm({
               {form.formState.errors.comments?.message}
             </div>
           )} */}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Your name here" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}

@@ -141,6 +141,7 @@ export const eventResponses = createTable("event_response", {
   eventId: varchar("event_id", { length: 255 })
     .notNull()
     .references(() => events.id),
+  name: varchar("name", {length: 255 }).notNull().default('No Name'),
   email: varchar("email", { length: 255 }).notNull(),
   dietaryRestrictions: text("dietary_restrictions").notNull(),
   preferredCuisines: text("preferred_cuisines").notNull(),
