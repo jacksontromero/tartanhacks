@@ -30,10 +30,16 @@ export async function POST(req: Request) {
   }
 
   const { date, ...rest } = result.data;
+  const localDate = new Date(date);
+  const utcDate = new Date(Date.UTC(
+    localDate.getFullYear(),
+    localDate.getMonth(),
+    localDate.getDate()
+  ));
 
   const event = await db.insert(events).values({
     ...rest,
-    date: new Date(date), // Now date is guaranteed to be a string
+    date: utcDate,
     hostId: session.user.id,
     priceRanges: JSON.stringify(rest.priceRanges),
     cuisineTypes: JSON.stringify(rest.cuisineTypes),
