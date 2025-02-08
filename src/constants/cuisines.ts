@@ -45,23 +45,17 @@ export const CUISINE_MAPPINGS: { [key: string]: string } = {
 export const CUISINE_TYPES: string[] = Object.keys(CUISINE_MAPPINGS);
 
 export const LOCATIONS = [
-  { name: 'Downtown Pittsburgh', lat: 40.4406, lng: -79.9959 },
-  { name: 'Oakland', lat: 40.4421, lng: -79.9620 },
-  // Add more locations as needed
-] as const;
-
-export const LOCATION_COORDINATES: { [key: string]: Area} = {
-  "Downtown": { name: "Downtown", lat: 40.4406, lng: -80.0000 },
-  "Strip District": { name: "Strip District", lat: 40.4500, lng: -79.9777 },
-  "Oakland": { name: "Oakland", lat: 40.4421, lng: -79.9559 },
-  "Shadyside": { name: "Shadyside", lat: 40.4543, lng: -79.9333 },
-  "Squirrel Hill": { name: "Squirrel Hill", lat: 40.4382, lng: -79.9236 },
-  "East Liberty": { name: "East Liberty", lat: 40.4621, lng: -79.9242 },
-  "Lawrenceville": { name: "Lawrenceville", lat: 40.4650, lng: -79.9605 },
-  "South Side": { name: "South Side", lat: 40.4282, lng: -79.9729 },
-  "North Shore": { name: "North Shore", lat: 40.4465, lng: -80.0103 },
-  "Bloomfield": { name: "Bloomfield", lat: 40.4621, lng: -79.9478 }
-};
+  { name: "Downtown Pittsburgh", lat: 40.4406, lng: -80.0000 },
+  { name: "Strip District", lat: 40.4500, lng: -79.9777 },
+  { name: "Oakland", lat: 40.4421, lng: -79.9559 },
+  { name: "Shadyside", lat: 40.4543, lng: -79.9333 },
+  { name: "Squirrel Hill", lat: 40.4382, lng: -79.9236 },
+  { name: "East Liberty", lat: 40.4621, lng: -79.9242 },
+  { name: "Lawrenceville", lat: 40.4650, lng: -79.9605 },
+  { name: "South Side", lat: 40.4282, lng: -79.9729 },
+  { name: "North Shore", lat: 40.4465, lng: -80.0103 },
+  { name: "Bloomfield", lat: 40.4621, lng: -79.9478 }
+];
 
 export const PRICE_RANGES = [
   { value: "$", label: "$ (Under $15)" },

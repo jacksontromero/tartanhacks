@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SignOutButton from "~/components/auth/SignOutButton";
 import { auth } from "~/server/auth";
+import SavePreferencesButton from "~/components/preferenceRanks/SavePreferencesButton"
 
 export default async function Navbar() {
   const session = await auth();
@@ -20,6 +21,7 @@ export default async function Navbar() {
             <span className="text-sm text-secondary-foreground">
               {session.user.name}
             </span>
+            {session && <SavePreferencesButton />}
             <SignOutButton />
           </div>
         )}

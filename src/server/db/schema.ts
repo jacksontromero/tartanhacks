@@ -263,6 +263,23 @@ export const rankedPlaces = createTable("ranked_places", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const preferences = createTable("", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", {length: 255 })
+    .notNull()
+    .references(() => users.id),
+  priceRanges: text("price_ranges").notNull(),
+  cuisineTypes: text("cuisine_types").notNull(),
+  rankedCuisines: text("ranked_cuisines").notNull(),
+})
+
+export const preferencesRelations = relations(preferences, ({ one }) => ({
+  user: one(users, { fields: [preferences.userId], references: [users.id] }),
+}));
+
 export const rankedPlacesRelations = relations(rankedPlaces, ({ one }) => ({
   event: one(events, {
     fields: [rankedPlaces.event_id],
