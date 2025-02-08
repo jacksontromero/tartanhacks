@@ -1,8 +1,11 @@
-import Link from "next/link";
 import SignInButton from "~/components/auth/SignInButton";
 import HostEventButton from "~/components/events/HostEventButton";
+import { auth } from "~/server/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+
+  const session = await auth();
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
@@ -11,7 +14,7 @@ export default function HomePage() {
         </h1>
         <div className="flex flex-col items-center gap-4">
           <SignInButton />
-          <HostEventButton />
+          {session && <HostEventButton />}
         </div>
       </div>
     </main>
