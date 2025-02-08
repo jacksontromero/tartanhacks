@@ -15,7 +15,6 @@ export default async function HomePage() {
         </h1>
         <div className="flex flex-col items-center gap-4">
           <SignInButton />
-          <PlacesFinder />
           {session && <HostEventButton />}
         </div>
       </div>
