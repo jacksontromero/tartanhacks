@@ -81,3 +81,5 @@ export const PRICE_MAPPINGS: { [key: string]: PriceLevel } = {
 export const INVERSE_PRICE_MAPPINGS: { [key: string]: string } = Object.fromEntries(
   Object.entries(PRICE_MAPPINGS).map(([key, value]) => [value, key])
 );
+
+type SelectedCuisinesType = Record<string, boolean>

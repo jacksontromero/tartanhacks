@@ -19,6 +19,10 @@ import { Textarea } from "~/components/ui/textarea";
 import { MultiSelect } from "~/components/ui/multi-select";
 import { DIETARY_RESTRICTIONS } from "~/constants/dietary-restrictions";
 import { PRICE_RANGES } from "~/constants/cuisines";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableItem } from './SortableItem';
+import { useState } from 'react';
 
 interface InviteFormProps {
   eventId: string;
@@ -26,12 +30,15 @@ interface InviteFormProps {
   availablePriceRanges: string[];
 }
 
-const formSchema = z.object({
+export const eventResponseFormSchema = z.object({
   email: z.string().email(),
   dietaryRestrictions: z.array(z.string()),
   preferredCuisines: z.array(z.string()).min(1, {
     message: "Please select at least one preferred cuisine type.",
+  }).max(5, {
+    message: "You can only select up to 5 preferred cuisines.",
   }),
+  rankedCuisines: z.array(z.string()),
   antiPreferredCuisines: z.array(z.string()),
   acceptablePriceRanges: z.array(z.string()).min(1, {
     message: "Please select at least one acceptable price range.",
@@ -45,15 +52,24 @@ export default function InviteForm({
   availablePriceRanges,
 }: InviteFormProps) {
   const router = useRouter();
+  const [rankedCuisines, setRankedCuisines] = useState<string[]>([]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const form = useForm<z.infer<typeof eventResponseFormSchema>>({
+    resolver: zodResolver(eventResponseFormSchema),
     defaultValues: {
       email: "",
       dietaryRestrictions: [],
       preferredCuisines: [],
       antiPreferredCuisines: [],
       acceptablePriceRanges: [],
+      rankedCuisines: [],
       comments: "",
     },
   });
@@ -61,25 +77,54 @@ export default function InviteForm({
   const preferredCuisines = form.watch("preferredCuisines");
   const antiPreferredCuisines = form.watch("antiPreferredCuisines");
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function handleDragEnd(event: any) {
+    const {active, over} = event;
+
+    if (active.id !== over.id) {
+      setRankedCuisines((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }
+
+  async function onSubmit(values: z.infer<typeof eventResponseFormSchema>) {
     try {
+      const submissionValues = {
+        ...values,
+        rankedCuisines,
+      };
+
+      // Since React Hook Form (with zodResolver) has already validated the form,
+      // we don't need to re-validate here.
       const res = await fetch(`/api/events/${eventId}/responses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(submissionValues),
       });
 
       if (!res.ok) {
-        throw new Error(res.statusText);
-      } else {
-        router.push(`/event/${eventId}/thanks`);
+        const errorData = await res.text();
+        throw new Error(errorData);
       }
+
+      router.push(`/event/${eventId}/thanks`);
     } catch (error) {
       console.error("Failed to submit response:", error);
+      form.setError("root", {
+        type: "server",
+        message: "Failed to submit response. Please check all fields and try again.",
+      });
     }
   }
+
+  const handlePreferredCuisinesChange = (values: string[]) => {
+    form.setValue('preferredCuisines', values);
+    setRankedCuisines(values);
+  };
 
   // Get available price range objects based on the host's selection
   const availablePriceRangeObjects = PRICE_RANGES.filter(
@@ -88,16 +133,31 @@ export default function InviteForm({
 
   return (
     <>
-
       <Form {...form}>
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const values = form.getValues();
-            onSubmit({ ...values });
-          }}
+          onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-8"
         >
+          {/* {(
+            <div className="text-red-500 text-sm">
+              {form.formState.errors.root?.message}
+
+              {form.formState.errors.email?.message}
+
+              {form.formState.errors.dietaryRestrictions?.message}
+
+              {form.formState.errors.preferredCuisines?.message}
+
+              {form.formState.errors.antiPreferredCuisines?.message}
+
+              {form.formState.errors.acceptablePriceRanges?.message}
+
+              {form.formState.errors.rankedCuisines?.message}
+
+              {form.formState.errors.comments?.message}
+            </div>
+          )} */}
+
           <FormField
             control={form.control}
             name="email"
@@ -142,25 +202,52 @@ export default function InviteForm({
             name="preferredCuisines"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Preferred Cuisines</FormLabel>
+                <FormLabel>Preferred Cuisines (Max 5)</FormLabel>
                 <FormControl>
                   <MultiSelect
                     options={availableCuisines.map((cuisine) => ({
                       label: cuisine,
                       value: cuisine,
-                      disabled: antiPreferredCuisines.includes(cuisine),
+                      disabled: antiPreferredCuisines.includes(cuisine) ||
+                              (field.value.length >= 5 && !field.value.includes(cuisine)),
                     }))}
                     defaultValue={field.value}
-                    onValueChange={(values) => {
-                      field.onChange(values);
-                    }}
-                    placeholder="Select cuisines you enjoy"
+                    onValueChange={handlePreferredCuisinesChange}
+                    placeholder="Select up to 5 cuisines you enjoy"
                   />
                 </FormControl>
+                <FormDescription>
+                  Select up to 5 cuisines. You can rank them below.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {rankedCuisines.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Rank Your Preferred Cuisines</h3>
+              <p className="text-sm text-gray-500">
+                Drag and drop to order from most preferred (top) to least preferred (bottom)
+              </p>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={rankedCuisines}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {rankedCuisines.map((cuisine) => (
+                      <SortableItem key={cuisine} id={cuisine} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
 
           <FormField
             control={form.control}
@@ -177,7 +264,7 @@ export default function InviteForm({
                     }))}
                     defaultValue={field.value}
                     onValueChange={field.onChange}
-                    placeholder="Select cuisines you'd rather avoid"
+                    placeholder="Select cuisines you refuse to eat (seriously, like veto the whole option)"
                   />
                 </FormControl>
                 <FormMessage />
