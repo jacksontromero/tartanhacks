@@ -55,6 +55,7 @@ export default function RankedRestaurants({
             score={ranking.score}
             rank={index + 1}
             eventId={eventId}
+            allRankings={rankings.map(r => ({ score: r.score }))}
           />
         </motion.div>
       ))}

@@ -20,6 +20,7 @@ interface RestaurantCardProps {
   rank: number;
   eventId: string;
   isFinal?: boolean;
+  allRankings?: { score: number }[];
 }
 
 export default function RestaurantCard({
@@ -27,7 +28,8 @@ export default function RestaurantCard({
   score,
   rank,
   eventId,
-  isFinal = false
+  isFinal = false,
+  allRankings
 }: RestaurantCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [unpickDialogOpen, setUnpickDialogOpen] = useState(false);
@@ -37,6 +39,20 @@ export default function RestaurantCard({
 
   const imageUrl = restaurant.main_image_url;
   const uniqueCuisines = [...new Set(restaurant.cuisines)];
+
+  const normalizeScore = (score: number, allRankings?: { score: number }[]): number => {
+    if (!allRankings || allRankings.length === 0) return score;
+
+    const scores = allRankings.map(r => r.score);
+    const maxScore = Math.max(...scores);
+    const minScore = Math.min(...scores);
+
+    // If all scores are the same or if there's only one score
+    if (maxScore === minScore || allRankings.length === 1) return 100;
+
+    // Normalize to 0-100 range
+    return Math.round(((score - minScore) / (maxScore - minScore)) * 100);
+  };
 
   const handleSelectRestaurant = async () => {
     try {
@@ -113,7 +129,7 @@ export default function RestaurantCard({
               <div className="flex items-center gap-2">
                 {!isFinal && (
                   <span className="rounded-full bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
-                    Score: {score.toFixed(1)}
+                    Score: {normalizeScore(score, allRankings)}
                   </span>
                 )}
                 {!isFinal && (
