@@ -1,3 +1,5 @@
+import { PriceLevel, Area } from '~/constants/types';
+
 export const CUISINE_MAPPINGS: { [key: string]: string } = {
   "Afghani": "afghani_restaurant",
   "African": "african_restaurant",
@@ -55,20 +57,25 @@ export const LOCATIONS = [
   "Bloomfield"
 ] as const;
 
+export const LOCATION_COORDINATES: { [key: string]: Area} = {
+  "Downtown": { name: "Downtown", lat: 40.4406, lng: -80.0000 },
+  "Strip District": { name: "Strip District", lat: 40.4500, lng: -79.9777 },
+  "Oakland": { name: "Oakland", lat: 40.4421, lng: -79.9559 },
+  "Shadyside": { name: "Shadyside", lat: 40.4543, lng: -79.9333 },
+  "Squirrel Hill": { name: "Squirrel Hill", lat: 40.4382, lng: -79.9236 },
+  "East Liberty": { name: "East Liberty", lat: 40.4621, lng: -79.9242 },
+  "Lawrenceville": { name: "Lawrenceville", lat: 40.4650, lng: -79.9605 },
+  "South Side": { name: "South Side", lat: 40.4282, lng: -79.9729 },
+  "North Shore": { name: "North Shore", lat: 40.4465, lng: -80.0103 },
+  "Bloomfield": { name: "Bloomfield", lat: 40.4621, lng: -79.9478 }
+};
+
 export const PRICE_RANGES = [
   { value: "$", label: "$ (Under $15)" },
   { value: "$$", label: "$$ ($15-$30)" },
   { value: "$$$", label: "$$$ ($31-$60)" },
   { value: "$$$$", label: "$$$$ (Over $60)" }
 ] as const;
-
-export enum PriceLevel {
-  PRICE_LEVEL_UNSPECIFIED = 0,
-  PRICE_LEVEL_INEXPENSIVE = 1,
-  PRICE_LEVEL_MODERATE = 2,
-  PRICE_LEVEL_EXPENSIVE = 3,
-  PRICE_LEVEL_VERY_EXPENSIVE = 4
-};
 
 export const PRICE_MAPPINGS: { [key: string]: PriceLevel } = {
     "?": PriceLevel.PRICE_LEVEL_UNSPECIFIED,
