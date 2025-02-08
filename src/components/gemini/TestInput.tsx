@@ -21,7 +21,7 @@ export default function TestInput() {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/test-gemini", {
+      const res = await fetch("/api/ai/cuisine", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
