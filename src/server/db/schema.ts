@@ -4,6 +4,7 @@ import {
   decimal,
   json,
   integer,
+  numeric,
   pgTableCreator,
   primaryKey,
   text,
@@ -11,6 +12,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
+import { PlaceDetails } from "~/constants/types";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -240,6 +242,24 @@ export const apiLogs = createTable("api_log", {
   error: text("error"),
   status: integer("status").notNull().default(200),
 });
+export const rankedPlaces = createTable("ranked_places", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  event_id: varchar("event_id", { length: 255 })
+    .notNull()
+    .references(() => events.id),
+  place_details: json("place_details").$type<PlaceDetails>(),
+  score: numeric("score", { precision: 10, scale: 2 }).notNull(),
+  created_at: timestamp("created_at", {
+    mode: "date",
+    withTimezone: true,
+  })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 
 export const placesRelations = relations(places, ({ one, many }) => ({
   event: one(events, {
