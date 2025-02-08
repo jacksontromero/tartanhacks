@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Loader2, MapPin, Phone, Globe, DollarSign, Star } from "lucide-react";
 
 const PlacesFinder = () => {
@@ -35,20 +35,18 @@ const PlacesFinder = () => {
     <div className="p-4 max-w-4xl mx-auto">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Pittsburgh Places Finder</h1>
-        <Button 
-          onClick={fetchPlaces} 
-          disabled={loading}
-          className="w-48"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading...
-            </>
-          ) : (
-            'Find Places'
-          )}
-        </Button>
+        <button onClick={fetchPlaces}
+          className="rounded-full bg-primary px-10 py-3 font-semibold text-secondary-foreground shadow-lg transition hover:bg-primary/90">
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </>
+              ) : (
+              'Find Places'
+            )}
+          </button>
+    
       </div>
 
       {error && (

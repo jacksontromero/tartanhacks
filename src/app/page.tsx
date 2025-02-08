@@ -1,10 +1,12 @@
 import SignInButton from "~/components/auth/SignInButton";
 import HostEventButton from "~/components/events/HostEventButton";
 import { auth } from "~/server/auth";
+import PlacesFinder from "~/components/places/placeAPItest";
 
 export default async function HomePage() {
 
   const session = await auth();
+  PlacesFinder()
 
   return (
     <main className="flex h-[calc(100vh-66px)] flex-col items-center justify-center bg-background">
