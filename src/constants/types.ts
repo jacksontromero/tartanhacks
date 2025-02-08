@@ -49,6 +49,7 @@ export interface PlaceDetails {
 export interface HostDetails {
     restaraunt: PlaceDetails,
     score: number,
+    ProsCons: string
   };
 
 export interface EventResponse {

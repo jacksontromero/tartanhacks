@@ -1,6 +1,23 @@
 import { CUISINE_MAPPINGS, PRICE_MAPPINGS } from "~/constants/cuisines";
 import { PlaceDetails, PriceLevel } from "~/constants/types";
 
+function calculateAggregateRating(
+  googleRating?: number,
+  googleCount?: number,
+  yelpRating?: number,
+  yelpCount?: number
+): number {
+  if (!googleRating && !yelpRating) return 0;
+
+  const googleWeight = googleCount ? googleCount / (googleCount + (yelpCount || 0)) : 0;
+  const yelpWeight = yelpCount ? yelpCount / (yelpCount + (googleCount || 0)) : 0;
+
+  return (
+    ((googleRating || 0) * googleWeight + (yelpRating || 0) * yelpWeight) /
+    (googleWeight + yelpWeight || 1)
+  );
+}
+
 interface AggregatedPreferences {
   preferredCuisines: Record<string, number>;
   antiPreferredCuisines: Record<string, number>;
@@ -110,4 +127,49 @@ export function scoreRestaurant(restaurant: PlaceDetails, preferences: Aggregate
   }
 
   return score || 0; // Ensure we return 0 instead of null/undefined
+}
+
+export async function rankRestaurantsForEvent(
+  event_id: string,
+  restaurants: Restaurant[],
+  preferences: AggregatedPreferences,
+  request: Request
+): Promise<HostDetails[]> {
+  const results = await Promise.all(restaurants.map(async restaurant => {
+    const yelpCuisines = restaurant.yelp?.categories?.map(cat => cat.title) || [];
+    
+    const restaurantWithCuisines: PlaceDetails = {
+      name: restaurant.displayName.text,
+      address: restaurant.formattedAddress,
+      coordinates: {
+        lat: restaurant.location?.latitude,
+        lng: restaurant.location?.longitude
+      },
+      rating: calculateAggregateRating(
+        restaurant.rating,
+        restaurant.userRatingCount,
+        restaurant.yelp?.rating,
+        restaurant.yelp?.review_count
+      ),
+      total_ratings: (restaurant.userRatingCount || 0) + (restaurant.yelp?.review_count || 0),
+      price_level: restaurant.yelp?.price?.length || 2,
+      phone_number: restaurant.yelp?.phone || '',
+      website: restaurant.yelp?.url || '',
+      opening_hours: [],
+      place_id: restaurant.id,
+      types: restaurant.types || [],
+      cuisines: [...(restaurant.cuisines || []), ...yelpCuisines],
+      features: restaurant.features || {},
+      reviews: []
+    };
+    
+    const score = scoreRestaurant(restaurantWithCuisines, preferences) || 0;
+  
+    return {
+      restaraunt: restaurantWithCuisines,
+      score,
+      ProsCons: ""
+    };
+  }));
+  return results.sort((a, b) => b.score - a.score);
 } 
